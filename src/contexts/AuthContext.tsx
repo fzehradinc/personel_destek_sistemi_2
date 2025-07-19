@@ -200,6 +200,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
       setIsLoading(false);
+  }
+  )
 
   // Logout function
   const logout = useCallback(async () => {
