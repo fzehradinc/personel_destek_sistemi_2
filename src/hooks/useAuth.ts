@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, UserSession } from '../types/user';
-import { useElectronStorage } from './useElectronStorage';
+import { useWebStorage } from './useWebStorage';
 
 export const useAuth = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // Varsayılan kullanıcıları oluştur
   const createDefaultUsers = useCallback(async () => {
