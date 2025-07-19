@@ -40,12 +40,14 @@ const LoginPage = () => {
       setLoading(false);
     } else {
       console.log('✅ [LOGIN] Giriş başarılı, AuthContext currentUser güncellemesi bekleniyor...');
+      console.log('🔍 [LOGIN] Login result:', result);
       // Loading state'i AuthContext tarafından yönetiliyor
       // setLoading(false) çağırmıyoruz çünkü yönlendirme olacak
       
       // Debug: 2 saniye sonra kontrol et
       setTimeout(() => {
         console.log('🔍 [LOGIN] 2 saniye sonra kontrol - hala LoginPage\'de miyiz?');
+        console.log('🔍 [LOGIN] Şu anki window.location:', window.location.href);
       }, 2000);
     }
     

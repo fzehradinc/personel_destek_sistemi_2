@@ -255,6 +255,7 @@ const AppContent = React.memo(() => {
     return <InitialLoadingSpinner />;
   }
 
+  // Kullanıcı yoksa giriş sayfası göster
   if (!currentUser) {
     console.log('👤 [APP] Kullanıcı girişi gerekli (currentUser=null), giriş sayfası gösteriliyor');
     return (
@@ -264,10 +265,13 @@ const AppContent = React.memo(() => {
     );
   }
 
-  console.log('✅ [APP] Kullanıcı giriş yapmış:', currentUser.username, 'Rol:', currentUser.role, 'Yönlendirme yapılıyor...');
+  // Kullanıcı var - rol kontrolü yap
+  console.log('✅ [APP] Kullanıcı giriş yapmış:', currentUser.username, 'Rol:', currentUser.role);
+  console.log('🔍 [APP] isAdmin:', isAdmin, 'isPersonel:', isPersonel);
   
+  // Personel kullanıcısı için dashboard
   if (isPersonel) {
-    console.log('👤 [APP] Personel dashboard yükleniyor:', currentUser.name);
+    console.log('👤 [APP] Personel dashboard yükleniyor:', currentUser.name, 'Role:', currentUser.role);
     return (
       <Suspense fallback={<InitialLoadingSpinner />}>
         <PersonelDashboard />
@@ -275,7 +279,12 @@ const AppContent = React.memo(() => {
     );
   }
 
-  console.log('👨‍💼 [APP] Admin dashboard yükleniyor:', currentUser.name);
+  // Admin kullanıcısı için admin paneli
+  if (isAdmin) {
+    console.log('👨‍💼 [APP] Admin dashboard yükleniyor:', currentUser.name, 'Role:', currentUser.role);
+  } else {
+    console.log('⚠️ [APP] Bilinmeyen rol:', currentUser.role, 'Admin dashboard varsayılan olarak yükleniyor');
+  }
   
   // Performance: Render tamamlandı
   const renderEndTime = performance.now();

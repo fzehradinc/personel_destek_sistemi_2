@@ -376,6 +376,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Computed values
   const isAdmin = currentUser?.role === 'admin';
   const isPersonel = currentUser?.role === 'personel';
+  
+  // Debug: Rol kontrolü
+  useEffect(() => {
+    if (currentUser) {
+      console.log('🔍 [AUTH-CONTEXT] Kullanıcı rolü analizi:');
+      console.log('  - currentUser.role:', currentUser.role);
+      console.log('  - isAdmin:', isAdmin);
+      console.log('  - isPersonel:', isPersonel);
+      console.log('  - currentUser object:', currentUser);
+    }
+  }, [currentUser, isAdmin, isPersonel]);
 
   const value: AuthContextType = {
     currentUser,
