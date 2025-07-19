@@ -58,18 +58,30 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
     isInitialized
   });
 
-  if (!isInitialized || isLoading) {
+  // Show loading only if truly not initialized AND loading
+  if (!isInitialized && isLoading) {
+    console.log('⏳ [PROTECTED-ROUTE] Still initializing...');
     return <InitialLoadingSpinner />;
   }
-
-  if (!currentUser) {
+  
+  // If initialized but no user, redirect to login
+  if (isInitialized && !currentUser) {
     console.log('🔒 [PROTECTED-ROUTE] No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && currentUser.role !== requiredRole) {
+  // If user exists but wrong role, redirect to appropriate dashboard
+  if (currentUser && requiredRole && currentUser.role !== requiredRole) {
     console.log('🚫 [PROTECTED-ROUTE] Wrong role, redirecting to appropriate dashboard');
-    return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+    const redirectPath = currentUser.role === 'admin' ? '/admin' : '/dashboard';
+    console.log('🔄 [PROTECTED-ROUTE] Redirecting to:', redirectPath);
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  // If we have a user but no role requirement, allow access
+  if (currentUser && !requiredRole) {
+    console.log('✅ [PROTECTED-ROUTE] User exists, no role requirement, access granted');
+    return <>{children}</>;
   }
 
   console.log('✅ [PROTECTED-ROUTE] Access granted');
@@ -87,13 +99,18 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     isInitialized
   });
 
-  if (!isInitialized || isLoading) {
+  // Show loading only if truly not initialized AND loading
+  if (!isInitialized && isLoading) {
+    console.log('⏳ [PUBLIC-ROUTE] Still initializing...');
     return <InitialLoadingSpinner />;
   }
 
+  // If initialized and user exists, redirect to appropriate dashboard
   if (currentUser) {
     console.log('👤 [PUBLIC-ROUTE] User logged in, redirecting to dashboard');
-    return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+    const redirectPath = currentUser.role === 'admin' ? '/admin' : '/dashboard';
+    console.log('🔄 [PUBLIC-ROUTE] Redirecting to:', redirectPath);
+    return <Navigate to={redirectPath} replace />;
   }
 
   console.log('🔓 [PUBLIC-ROUTE] No user, showing login page');

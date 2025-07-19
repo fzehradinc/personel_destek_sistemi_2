@@ -323,6 +323,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setCurrentUser(null);
       }
       
+      // CRITICAL: Always set these states regardless of storage status
       setIsLoading(false);
       setIsInitialized(true);
       console.log('✅ [AUTH] Authentication initialization completed');
