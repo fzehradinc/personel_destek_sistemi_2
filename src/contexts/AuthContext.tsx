@@ -160,6 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     console.time('⏱️ [AUTH] Login process');
     console.log('🔐 [AUTH] Starting login for:', username);
+    setIsLoading(true);
     
     try {
       const users = await loadUsers();
@@ -168,42 +169,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!user) {
         console.log('❌ [AUTH] Invalid credentials for:', username);
         console.timeEnd('⏱️ [AUTH] Login process');
+        setIsLoading(false);
         return { success: false, message: 'Kullanıcı adı veya şifre hatalı' };
       }
 
+      const loginTime = new Date().toISOString();
+      
+      // Kullanıcı bilgilerini güncelle
+      const updatedUser = {
+        ...user,
+        lastLogin: loginTime
+      };
+      
       // Oturum oluştur (24 saat geçerli)
       const session: UserSession = {
-        user: {
-          ...user,
-          lastLogin: new Date().toISOString()
-        },
-        loginTime: new Date().toISOString(),
+        user: updatedUser,
+        loginTime,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       };
 
-      // Paralel işlemler
-      const [sessionResult, usersResult] = await Promise.allSettled([
-        storage.writeJsonFile('user_session.json', session),
-        (async () => {
-          const updatedUsers = users.map(u => 
-            u.id === user.id ? { ...u, lastLogin: session.loginTime } : u
-          );
-          return storage.writeJsonFile('users.json', updatedUsers);
-        })()
-      ]);
-
-      if (sessionResult.status === 'rejected') {
-        console.warn('⚠️ [AUTH] Session save failed, but continuing...');
+      console.log('💾 [AUTH] Saving session and updating user data...');
+      
+      // Önce currentUser'ı set et - bu yönlendirmeyi tetikler
+      setCurrentUser(updatedUser);
+      console.log('✅ [AUTH] CurrentUser set:', updatedUser.username);
+      
+      // Sonra storage'a kaydet (async olarak)
+      try {
+        await storage.writeJsonFile('user_session.json', session);
+        console.log('💾 [AUTH] Session saved to storage');
+        
+        // Kullanıcı listesini güncelle
+        const updatedUsers = users.map(u => 
+          u.id === user.id ? updatedUser : u
+        );
+        await storage.writeJsonFile('users.json', updatedUsers);
+        console.log('💾 [AUTH] User list updated');
+      } catch (storageError) {
+        console.warn('⚠️ [AUTH] Storage save failed, but login continues:', storageError);
+        // Storage hatası olsa bile giriş başarılı sayılır
       }
 
-      setCurrentUser(session.user);
       console.log('✅ [AUTH] Login successful:', user.username);
       console.timeEnd('⏱️ [AUTH] Login process');
+      setIsLoading(false);
       
       return { success: true, message: 'Giriş başarılı' };
     } catch (error) {
       console.error('❌ [AUTH] Login error:', error);
       console.timeEnd('⏱️ [AUTH] Login process');
+      setIsLoading(false);
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
   }, [storage, loadUsers]); // Remove storage.isReady dependency

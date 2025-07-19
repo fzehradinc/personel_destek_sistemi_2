@@ -29,17 +29,22 @@ const LoginPage = () => {
     console.time('⏱️ [LOGIN] Giriş işlem süresi');
     setLoading(true);
     setError('');
+    
+    console.log('🔐 [LOGIN] Giriş denemesi:', username);
 
     const result = await login(username, password);
     
     if (!result.success) {
+      console.log('❌ [LOGIN] Giriş başarısız:', result.message);
       setError(result.message);
+      setLoading(false);
     } else {
-      console.log('✅ [LOGIN] Giriş başarılı');
+      console.log('✅ [LOGIN] Giriş başarılı, yönlendirme bekleniyor...');
+      // Loading state'i AuthContext tarafından yönetiliyor
+      // setLoading(false) çağırmıyoruz çünkü yönlendirme olacak
     }
     
     console.timeEnd('⏱️ [LOGIN] Giriş işlem süresi');
-    setLoading(false);
   };
 
   // İlk yükleme durumu

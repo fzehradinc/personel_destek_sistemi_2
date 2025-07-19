@@ -256,7 +256,7 @@ const AppContent = React.memo(() => {
   }
 
   if (!currentUser) {
-    console.log('👤 [APP] Kullanıcı girişi gerekli (currentUser=null)');
+    console.log('👤 [APP] Kullanıcı girişi gerekli (currentUser=null), giriş sayfası gösteriliyor');
     return (
       <Suspense fallback={<InitialLoadingSpinner />}>
         <LoginPage />
@@ -264,6 +264,8 @@ const AppContent = React.memo(() => {
     );
   }
 
+  console.log('✅ [APP] Kullanıcı giriş yapmış:', currentUser.username, 'Rol:', currentUser.role);
+  
   if (isPersonel) {
     console.log('👤 [APP] Personel dashboard yükleniyor');
     return (
@@ -273,6 +275,8 @@ const AppContent = React.memo(() => {
     );
   }
 
+  console.log('👨‍💼 [APP] Admin dashboard yükleniyor');
+  
   // Performance: Render tamamlandı
   const renderEndTime = performance.now();
   console.log(`✅ [APP] Component render tamamlandı (${(renderEndTime - renderStartTime).toFixed(2)}ms)`);
