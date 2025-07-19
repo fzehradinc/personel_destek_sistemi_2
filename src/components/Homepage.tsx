@@ -36,7 +36,7 @@ interface ContentCreationForm {
     ornekDavranislar?: string;
     soz?: string;
   };
-import { useWebStorage } from '../hooks/useWebStorage';
+}
 
 const Homepage = () => {
   const [currentDevelopments, setCurrentDevelopments] = useState<CurrentDevelopment[]>([]);
