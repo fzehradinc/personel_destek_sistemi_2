@@ -36,7 +36,7 @@ interface ContentCreationForm {
     ornekDavranislar?: string;
     soz?: string;
   };
-}
+import { useWebStorage } from '../hooks/useWebStorage';
 
 const Homepage = () => {
   const [currentDevelopments, setCurrentDevelopments] = useState<CurrentDevelopment[]>([]);
@@ -58,7 +58,7 @@ const Homepage = () => {
   // Carousel states for corporate values
   const [currentValueIndex, setCurrentValueIndex] = useState(0);
 
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // Görsel yükleme fonksiyonu - DÜZELTME: Double encoding önleme
   const loadNewsImage = useCallback(async (development: any): Promise<string | null> => {
