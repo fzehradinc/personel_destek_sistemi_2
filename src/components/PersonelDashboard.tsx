@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Workflow, FileText, HelpCircle, CheckCircle, Clock, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useContentAssignment } from '../hooks/useContentAssignment';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 const PersonelDashboard = () => {
   const { currentUser } = useAuth();
   const { getUserAssignedContent, getUserProgressForContent, updateUserProgress } = useContentAssignment();
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
   
   const [assignedContent, setAssignedContent] = useState<any[]>([]);
   const [contentData, setContentData] = useState<any>({});

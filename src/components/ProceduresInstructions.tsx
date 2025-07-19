@@ -970,7 +970,7 @@ onClose: () => void;
 onDownload: (procedure: ProcedureInstruction) => void;
 getPDFPreviewUrl: (procedure: ProcedureInstruction) => Promise<string | null>;
 getTypeColor: (type: string) => string;
-storage: ReturnType<typeof useElectronStorage>;
+  storage: ReturnType<typeof useWebStorage>;
 }) => {
 const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 const [loadingPDF, setLoadingPDF] = useState(false);
