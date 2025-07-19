@@ -351,3 +351,134 @@ const AppContent = React.memo(() => {
             )}
 
             {/*
+            {showTransferButtons && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExport}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                  title="Verileri Dışa Aktar"
+                >
+                  <Download className="w-4 h-4" />
+                  {!sidebarCollapsed && <span className="text-xs">Dışa Aktar</span>}
+                </button>
+                
+                <button
+                  onClick={handleImport}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                  title="Verileri İçe Aktar"
+                >
+                  <Upload className="w-4 h-4" />
+                  {!sidebarCollapsed && <span className="text-xs">İçe Aktar</span>}
+                </button>
+                
+                <button
+                  onClick={hideTransferButtons}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  title="Gizle"
+                >
+                  <EyeOff className="w-4 h-4" />
+                  {!sidebarCollapsed && <span className="text-xs">Gizle</span>}
+                </button>
+              </div>
+            )}
+
+            {/* Çıkış Butonu */}
+            <button
+              onClick={logout}
+              className="flex items-center gap-3 w-full px-3 py-3 text-purple-100 hover:text-white hover:bg-white hover:bg-opacity-10 rounded-xl transition-all duration-200"
+              title="Çıkış Yap"
+            >
+              <LogOut className="w-5 h-5" />
+              {!sidebarCollapsed && <span className="text-sm">Çıkış Yap</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* Ana İçerik Alanı */}
+        <div className={`
+          flex-1 transition-all duration-300 ease-in-out
+          ${sidebarCollapsed ? 'ml-16' : 'ml-64'}
+        `}>
+          {/* Üst Header */}
+          <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {activeTabData && (
+                  <>
+                    <div className={`
+                      w-10 h-10 rounded-xl bg-gradient-to-r ${activeTabData.color} 
+                      flex items-center justify-center text-white shadow-lg
+                    `}>
+                      <activeTabData.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h1 className="text-xl font-bold text-gray-900">
+                        {activeTabData.label}
+                      </h1>
+                      <p className="text-sm text-gray-600">
+                        {activeTabData.description}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-900">
+                    {currentUser.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {isAdmin ? 'Yönetici' : 'Personel'}
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white text-sm font-medium">
+                  {currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tab İçeriği */}
+          <div className="p-6">
+            {renderTabContent}
+          </div>
+        </div>
+
+        {/* Content Assignment Modal */}
+        <ContentAssignmentModal
+          isOpen={showAssignmentModal.isOpen}
+          onClose={closeAssignmentModal}
+          contentId={showAssignmentModal.contentId}
+          contentType={showAssignmentModal.contentType}
+          contentTitle={showAssignmentModal.contentTitle}
+        />
+
+        {/* Developer Tools Modal */}
+        <DeveloperToolsModal
+          showPasswordModal={showPasswordModal}
+          showConfirmModal={showConfirmModal}
+          onPasswordConfirm={handlePasswordConfirm}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+        />
+      </div>
+    </ScrollToTop>
+  );
+});
+AppContent.displayName = 'AppContent';
+
+// Performance: Ana App bileşeni - Router wrapper
+const App: React.FC = () => {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
+  );
+};
+
+export default App;
