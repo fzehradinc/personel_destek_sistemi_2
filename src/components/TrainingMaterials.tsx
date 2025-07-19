@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, FileText, Eye, Download, Search, Trash2, Edit, Calendar, Tag, Rocket, RotateCcw, CheckCircle, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward } from 'lucide-react';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 interface TrainingMaterial {
   id: string;
@@ -44,7 +44,7 @@ const TrainingMaterials = () => {
   });
 
   // Electron Storage Hook
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // PERSISTENT PREVIEW CACHE - In-memory cache for session persistence
   const [previewCache, setPreviewCache] = useState<Map<string, string>>(new Map());
