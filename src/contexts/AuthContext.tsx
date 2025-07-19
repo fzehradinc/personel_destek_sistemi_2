@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { User, UserSession } from '../types/user';
 import { useWebStorage } from '../hooks/useWebStorage';
 
@@ -32,10 +32,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const storage = useWebStorage();
+  
+  // Refs to prevent multiple initialization and double effects
+  const initRef = useRef(false);
+  const sessionCheckRef = useRef(false);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Performance: Varsayılan kullanıcıları oluştur - sadece bir kez
-  const createDefaultUsers = async (): Promise<User[]> => {
-    console.time('⏱️ [WEB-AUTH] Varsayılan kullanıcılar oluşturma');
+  // Varsayılan kullanıcıları oluştur - Memoized
+  const createDefaultUsers = useCallback(async (): Promise<User[]> => {
+    console.time('⏱️ [AUTH] Varsayılan kullanıcılar');
     
     const defaultUsers: User[] = [
       {
@@ -73,68 +78,91 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     ];
 
-    await storage.writeJsonFile('users.json', defaultUsers);
-    console.timeEnd('⏱️ [WEB-AUTH] Varsayılan kullanıcılar oluşturma');
-    console.log('✅ [WEB-AUTH] Varsayılan kullanıcılar oluşturuldu');
-    return defaultUsers;
-  };
+    try {
+      await storage.writeJsonFile('users.json', defaultUsers);
+      console.timeEnd('⏱️ [AUTH] Varsayılan kullanıcılar');
+      console.log('✅ [AUTH] Varsayılan kullanıcılar oluşturuldu');
+      return defaultUsers;
+    } catch (error) {
+      console.error('❌ [AUTH] Varsayılan kullanıcılar oluşturulamadı:', error);
+      console.timeEnd('⏱️ [AUTH] Varsayılan kullanıcılar');
+      return defaultUsers; // En azından memory'de dön
+    }
+  }, [storage]);
 
-  // Performance: Kullanıcıları yükle - cache ile optimize edilmiş
-  const loadUsers = async (): Promise<User[]> => {
-    console.time('⏱️ [WEB-AUTH] Kullanıcılar yükleme');
+  // Kullanıcıları yükle - Cache optimize edilmiş
+  const loadUsers = useCallback(async (): Promise<User[]> => {
+    if (!storage.isReady) {
+      console.warn('⚠️ [AUTH] Storage henüz hazır değil');
+      return [];
+    }
+
+    console.time('⏱️ [AUTH] Kullanıcılar yükleme');
     
     try {
       let users = await storage.readJsonFile('users.json');
+      
       if (!users || !Array.isArray(users) || users.length === 0) {
+        console.log('📝 [AUTH] Kullanıcı bulunamadı, varsayılanlar oluşturuluyor');
         users = await createDefaultUsers();
       }
       
-      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcılar yükleme');
+      console.timeEnd('⏱️ [AUTH] Kullanıcılar yükleme');
       return users;
     } catch (error) {
-      console.error('❌ [WEB-AUTH] Kullanıcılar yüklenirken hata:', error);
-      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcılar yükleme');
+      console.error('❌ [AUTH] Kullanıcılar yüklenirken hata:', error);
+      console.timeEnd('⏱️ [AUTH] Kullanıcılar yükleme');
       return await createDefaultUsers();
     }
-  };
+  }, [storage.isReady, createDefaultUsers]);
 
-  // Performance: Oturum kontrolü - optimize edilmiş
-  const checkSession = async () => {
-    console.time('⏱️ [WEB-AUTH] checkSession süresi');
+  // Oturum kontrolü - Tek sefer çalışacak şekilde optimize edildi
+  const checkSession = useCallback(async () => {
+    if (sessionCheckRef.current || !storage.isReady) {
+      return;
+    }
+    
+    sessionCheckRef.current = true;
+    console.time('⏱️ [AUTH] Oturum kontrolü');
     
     try {
       const session = await storage.readJsonFile('user_session.json') as UserSession | null;
       
-      if (session && new Date(session.expiresAt) > new Date()) {
+      if (session && session.user && new Date(session.expiresAt) > new Date()) {
         // Oturum geçerli
         setCurrentUser(session.user);
-        console.log('✅ [WEB-AUTH] Geçerli oturum bulundu:', session.user.username);
+        console.log('✅ [AUTH] Geçerli oturum bulundu:', session.user.username);
       } else {
         // Oturum süresi dolmuş veya yok
         if (session) {
           await storage.writeJsonFile('user_session.json', null);
+          console.log('🗑️ [AUTH] Süresi dolmuş oturum temizlendi');
         }
         setCurrentUser(null);
       }
     } catch (error) {
-      console.error('❌ [WEB-AUTH] Oturum kontrolü hatası:', error);
+      console.error('❌ [AUTH] Oturum kontrolü hatası:', error);
       setCurrentUser(null);
     } finally {
       setIsLoading(false);
-      console.timeEnd('⏱️ [WEB-AUTH] checkSession süresi');
+      console.timeEnd('⏱️ [AUTH] Oturum kontrolü');
     }
-  };
+  }, [storage.isReady, storage]);
 
-  // Performance: Giriş yapma - optimize edilmiş
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
-    console.time('⏱️ [WEB-AUTH] Giriş işlemi');
+  // Giriş yapma - Optimize edilmiş
+  const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
+    if (!storage.isReady) {
+      return { success: false, message: 'Sistem henüz hazır değil' };
+    }
+
+    console.time('⏱️ [AUTH] Giriş işlemi');
     
     try {
       const users = await loadUsers();
       const user = users.find(u => u.username === username && u.password === password && u.isActive);
 
       if (!user) {
-        console.timeEnd('⏱️ [WEB-AUTH] Giriş işlemi');
+        console.timeEnd('⏱️ [AUTH] Giriş işlemi');
         return { success: false, message: 'Kullanıcı adı veya şifre hatalı' };
       }
 
@@ -145,191 +173,141 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           lastLogin: new Date().toISOString()
         },
         loginTime: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 saat
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       };
 
-      await storage.writeJsonFile('user_session.json', session);
-      
-      // Son giriş tarihini güncelle
-      const updatedUsers = users.map(u => 
-        u.id === user.id ? { ...u, lastLogin: session.loginTime } : u
-      );
-      await storage.writeJsonFile('users.json', updatedUsers);
+      // Paralel işlemler
+      const [sessionResult, usersResult] = await Promise.allSettled([
+        storage.writeJsonFile('user_session.json', session),
+        (async () => {
+          const updatedUsers = users.map(u => 
+            u.id === user.id ? { ...u, lastLogin: session.loginTime } : u
+          );
+          return storage.writeJsonFile('users.json', updatedUsers);
+        })()
+      ]);
+
+      if (sessionResult.status === 'rejected') {
+        throw new Error('Oturum kaydedilemedi');
+      }
 
       setCurrentUser(session.user);
-      console.log('✅ [WEB-AUTH] Giriş başarılı:', user.username);
-      console.timeEnd('⏱️ [WEB-AUTH] Giriş işlemi');
+      console.log('✅ [AUTH] Giriş başarılı:', user.username);
+      console.timeEnd('⏱️ [AUTH] Giriş işlemi');
       
       return { success: true, message: 'Giriş başarılı' };
     } catch (error) {
-      console.error('❌ [WEB-AUTH] Giriş hatası:', error);
-      console.timeEnd('⏱️ [WEB-AUTH] Giriş işlemi');
+      console.error('❌ [AUTH] Giriş hatası:', error);
+      console.timeEnd('⏱️ [AUTH] Giriş işlemi');
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
-  };
+  }, [storage.isReady, storage, loadUsers]);
 
-  // Performance: Çıkış yapma - optimize edilmiş
-  const logout = async () => {
-    console.time('⏱️ [WEB-AUTH] Çıkış işlemi');
+  // Çıkış yapma
+  const logout = useCallback(async () => {
+    console.time('⏱️ [AUTH] Çıkış işlemi');
     
     try {
       await storage.writeJsonFile('user_session.json', null);
       setCurrentUser(null);
-      console.log('✅ [WEB-AUTH] Çıkış yapıldı');
+      sessionCheckRef.current = false; // Reset session check
+      console.log('✅ [AUTH] Çıkış yapıldı');
     } catch (error) {
-      console.error('❌ [WEB-AUTH] Çıkış hatası:', error);
+      console.error('❌ [AUTH] Çıkış hatası:', error);
+      // Hata olsa bile state'i temizle
+      setCurrentUser(null);
     } finally {
-      console.timeEnd('⏱️ [WEB-AUTH] Çıkış işlemi');
+      console.timeEnd('⏱️ [AUTH] Çıkış işlemi');
     }
-  };
+  }, [storage]);
 
-  // Performance: Kullanıcı ekleme - optimize edilmiş
-  const addUser = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<{ success: boolean; message: string }> => {
+  // Kullanıcı ekleme - Authorize edilmiş
+  const addUser = useCallback(async (userData: Omit<User, 'id' | 'createdAt'>): Promise<{ success: boolean; message: string }> => {
     if (currentUser?.role !== 'admin') {
       return { success: false, message: 'Yetkiniz yok' };
     }
 
-    console.time('⏱️ [WEB-AUTH] Kullanıcı ekleme');
+    console.time('⏱️ [AUTH] Kullanıcı ekleme');
 
     try {
       const users = await loadUsers();
       
-      // Kullanıcı adı kontrolü
       if (users.some(u => u.username === userData.username)) {
-        console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı ekleme');
+        console.timeEnd('⏱️ [AUTH] Kullanıcı ekleme');
         return { success: false, message: 'Bu kullanıcı adı zaten kullanılıyor' };
       }
 
       const newUser: User = {
         ...userData,
-        id: `user-${Date.now()}`,
+        id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         createdAt: new Date().toISOString()
       };
 
       const updatedUsers = [...users, newUser];
       await storage.writeJsonFile('users.json', updatedUsers);
       
-      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı ekleme');
+      console.timeEnd('⏱️ [AUTH] Kullanıcı ekleme');
       return { success: true, message: 'Kullanıcı başarıyla eklendi' };
     } catch (error) {
-      console.error('❌ [WEB-AUTH] Kullanıcı ekleme hatası:', error);
-      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı ekleme');
+      console.error('❌ [AUTH] Kullanıcı ekleme hatası:', error);
+      console.timeEnd('⏱️ [AUTH] Kullanıcı ekleme');
       return { success: false, message: 'Kullanıcı eklenirken hata oluştu' };
     }
-  };
+  }, [currentUser?.role, loadUsers, storage]);
 
-  // Performance: Kullanıcı güncelleme - optimize edilmiş
-  const updateUser = async (userId: string, updates: Partial<User>): Promise<{ success: boolean; message: string }> => {
+  // Kullanıcı güncelleme
+  const updateUser = useCallback(async (userId: string, updates: Partial<User>): Promise<{ success: boolean; message: string }> => {
     if (currentUser?.role !== 'admin') {
       return { success: false, message: 'Yetkiniz yok' };
     }
 
-    console.time('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
+    console.time('⏱️ [AUTH] Kullanıcı güncelleme');
 
     try {
       const users = await loadUsers();
       const userIndex = users.findIndex(u => u.id === userId);
       
       if (userIndex === -1) {
-        console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
+        console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
         return { success: false, message: 'Kullanıcı bulunamadı' };
       }
 
       users[userIndex] = { ...users[userIndex], ...updates };
       await storage.writeJsonFile('users.json', users);
       
-      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
+      console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
       return { success: true, message: 'Kullanıcı başarıyla güncellendi' };
     } catch (error) {
-      console.error('❌ [WEB-AUTH] Kullanıcı güncelleme hatası:', error);
-      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
+      console.error('❌ [AUTH] Kullanıcı güncelleme hatası:', error);
+      console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
       return { success: false, message: 'Kullanıcı güncellenirken hata oluştu' };
     }
-  };
+  }, [currentUser?.role, loadUsers, storage]);
 
-  // Performance: Tüm kullanıcıları getir - optimize edilmiş
-  const getAllUsers = async (): Promise<User[]> => {
+  // Tüm kullanıcıları getir
+  const getAllUsers = useCallback(async (): Promise<User[]> => {
     if (currentUser?.role !== 'admin') {
       return [];
     }
     return await loadUsers();
-  };
+  }, [currentUser?.role, loadUsers]);
 
-  // Performance: İlk yükleme - sadece bir kez çalışır, hızlı başlatma
+  // Storage hazır olduğunda oturum kontrolü yap - Tek sefer
   useEffect(() => {
-    console.time('⏱️ [WEB-AUTH] AuthProvider başlatma');
-    
-    // Web storage anında hazır olduğu için hemen checkSession çalıştır
-    const initAuth = async () => {
-      if (storage.isReady) {
-        await checkSession();
-        console.timeEnd('⏱️ [WEB-AUTH] AuthProvider başlatma');
-      }
-    };
-    
-    initAuth();
-  }, [storage.isReady]);
-
-  // Loading durumu için timeout - 5 saniyeden uzun sürerse uyarı ver
-  useEffect(() => {
-    if (isLoading) {
-      const timeout = setTimeout(() => {
-        if (isLoading) {
-          console.warn('⚠️ [WEB-AUTH] Giriş kontrolü 5 saniyeden uzun sürüyor');
-          setIsLoading(false); // Zorla loading'i bitir
-        }
-      }, 5000);
+    if (!initRef.current && storage.isReady && !sessionCheckRef.current) {
+      initRef.current = true;
+      console.time('⏱️ [AUTH] AuthProvider başlatma');
       
-      return () => clearTimeout(timeout);
-    }
-  }, [isLoading]);
-
-  // Hata durumu için fallback
-  useEffect(() => {
-    const handleError = (error: ErrorEvent) => {
-      console.error('❌ [WEB-AUTH] Global hata yakalandı:', error);
-      if (isLoading) {
-        setIsLoading(false);
-      }
-    };
-
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, [isLoading]);
-
-  // Performans izleme
-  useEffect(() => {
-    if (!isLoading && currentUser) {
-      console.log('🚀 [WEB-AUTH] Kullanıcı oturumu aktif:', {
-        user: currentUser.username,
-        role: currentUser.role,
-        loginTime: new Date().toLocaleTimeString('tr-TR')
+      checkSession().finally(() => {
+        console.timeEnd('⏱️ [AUTH] AuthProvider başlatma');
       });
     }
-  }, [isLoading, currentUser]);
+  }, [storage.isReady, checkSession]);
 
-  // Storage hazır olma durumunu izle
+  // Loading timeout - Maksimum 10 saniye bekle
   useEffect(() => {
-    if (storage.isReady && isLoading) {
-      checkSession();
-    }
-  }, [storage.isReady, isLoading]);
-
-  const value: AuthContextType = {
-    currentUser,
-    isLoading,
-    login,
-    logout,
-    addUser,
-    updateUser,
-    getAllUsers,
-    isAdmin: currentUser?.role === 'admin',
-    isPersonel: currentUser?.role === 'personel'
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+    if (isLoading) {
+      loadingTimeoutRef.current = setTimeout(() => {
+        if (isLoading) {
+          console.warn('⚠️ [AUTH] Loading timeout - zorla durduruldu');
+          setIs
