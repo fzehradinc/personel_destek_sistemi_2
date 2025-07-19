@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Heart, Plus, X, Calendar, User, Building2, Rocket, Eye, Settings, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 interface CurrentDevelopment {
   id: string;
