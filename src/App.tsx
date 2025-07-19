@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import LoginPage from './components/LoginPage';
 import UserManagement from './components/UserManagement';
@@ -50,6 +50,33 @@ function App() {
     handleCancel
   } = useDeveloperTools();
 
+  // Tab değiştirme fonksiyonunu optimize et
+  const handleTabChange = useCallback((tabId: string) => {
+    if (tabId !== activeTab) {
+      setActiveTab(tabId);
+    }
+  }, [activeTab]);
+
+  // Sidebar toggle fonksiyonunu optimize et
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarCollapsed(prev => !prev);
+  }, []);
+
+  // Assignment modal açma fonksiyonunu optimize et
+  const openAssignmentModal = useCallback((contentId: string, contentType: 'training' | 'process' | 'procedure' | 'faq', contentTitle: string) => {
+    setShowAssignmentModal({
+      isOpen: true,
+      contentId,
+      contentType,
+      contentTitle
+    });
+  }, []);
+
+  // Assignment modal kapatma fonksiyonunu optimize et
+  const closeAssignmentModal = useCallback(() => {
+    setShowAssignmentModal(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   // Giriş kontrolü
   if (isLoading) {
     return (
@@ -72,7 +99,7 @@ function App() {
   }
 
   // Admin için mevcut sistem (genişletilmiş)
-  const tabs = [
+  const tabs = useMemo(() => [
     { 
       id: 'homepage', 
       label: 'Ana Sayfa', 
@@ -115,30 +142,95 @@ function App() {
       color: 'from-red-500 to-red-600',
       description: 'Soru ve cevaplar'
     }
-  ];
+  ], []);
 
   // Admin için ek sekmeler
-  if (isAdmin) {
-    tabs.push({
-      id: 'users',
-      label: 'Kullanıcı Yönetimi',
-      icon: UserCog,
-      color: 'from-gray-500 to-gray-600',
-      description: 'Kullanıcı hesapları ve yetkilendirme'
-    });
-  }
+  const adminTabs = useMemo(() => {
+    if (!isAdmin) return tabs;
+    
+    return [
+      ...tabs,
+      {
+        id: 'users',
+        label: 'Kullanıcı Yönetimi',
+        icon: UserCog,
+        color: 'from-gray-500 to-gray-600',
+        description: 'Kullanıcı hesapları ve yetkilendirme'
+      }
+    ];
+  }, [isAdmin, tabs]);
 
-  const activeTabData = tabs.find(tab => tab.id === activeTab);
+  const activeTabData = useMemo(() => {
+    return adminTabs.find(tab => tab.id === activeTab);
+  }, [adminTabs, activeTab]);
 
-  // İçerik atama modalını açma fonksiyonu
-  const openAssignmentModal = (contentId: string, contentType: 'training' | 'process' | 'procedure' | 'faq', contentTitle: string) => {
-    setShowAssignmentModal({
-      isOpen: true,
-      contentId,
-      contentType,
-      contentTitle
+  // Render edilen tab içeriğini memoize et
+  const renderTabContent = useMemo(() => {
+    switch (activeTab) {
+      case 'homepage':
+        return <Homepage />;
+      case 'orgchart':
+        return <OrgTree />;
+      case 'training':
+        return <TrainingMaterials onAssignContent={openAssignmentModal} />;
+      case 'process':
+        return <ProcessFlow onAssignContent={openAssignmentModal} />;
+      case 'procedures':
+        return <ProceduresInstructions onAssignContent={openAssignmentModal} />;
+      case 'faq':
+        return <FAQ onAssignContent={openAssignmentModal} />;
+      case 'users':
+        return isAdmin ? <UserManagement /> : null;
+      default:
+        return <Homepage />;
+    }
+  }, [activeTab, isAdmin, openAssignmentModal]);
+
+  // Navigation items'ı memoize et
+  const navigationItems = useMemo(() => {
+    return adminTabs.map((tab) => {
+      const IconComponent = tab.icon;
+      const isActive = activeTab === tab.id;
+      
+      return (
+        <button
+          key={tab.id}
+          onClick={() => handleTabChange(tab.id)}
+          className={`
+            group relative w-full flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all duration-200
+            ${isActive
+              ? 'bg-white bg-opacity-20 text-white shadow-lg transform scale-105'
+              : 'text-purple-100 hover:text-white hover:bg-white hover:bg-opacity-10'
+            }
+            ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
+          `}
+          title={sidebarCollapsed ? tab.label : ''}
+        >
+          <IconComponent className={`
+            w-5 h-5 transition-transform duration-200 flex-shrink-0
+            ${isActive ? 'scale-110' : 'group-hover:scale-110'}
+          `} />
+          
+          {!sidebarCollapsed && (
+            <span className="text-sm font-medium truncate">{tab.label}</span>
+          )}
+          
+          {/* Active indicator */}
+          {isActive && (
+            <div className="absolute right-2 w-2 h-2 bg-white rounded-full shadow-sm"></div>
+          )}
+          
+          {/* Tooltip for collapsed state */}
+          {sidebarCollapsed && (
+            <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+              {tab.label}
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+            </div>
+          )}
+        </button>
+      );
     });
-  };
+  }, [adminTabs, activeTab, sidebarCollapsed, handleTabChange]);
 
   return (
     <ScrollToTop activeTab={activeTab}>
@@ -171,7 +263,7 @@ function App() {
             )}
             
             <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              onClick={handleSidebarToggle}
               className="p-2 rounded-lg bg-white bg-opacity-10 hover:bg-opacity-20 transition-all duration-200 ml-auto"
               title={sidebarCollapsed ? 'Menüyü Genişlet' : 'Menüyü Daralt'}
             >
@@ -186,48 +278,7 @@ function App() {
           {/* Navigation Menu */}
           <nav className="flex-1 py-6">
             <div className="space-y-2 px-3">
-              {tabs.map((tab) => {
-                const IconComponent = tab.icon;
-                const isActive = activeTab === tab.id;
-                
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      group relative w-full flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all duration-200
-                      ${isActive
-                        ? 'bg-white bg-opacity-20 text-white shadow-lg transform scale-105'
-                        : 'text-purple-100 hover:text-white hover:bg-white hover:bg-opacity-10'
-                      }
-                      ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
-                    `}
-                    title={sidebarCollapsed ? tab.label : ''}
-                  >
-                    <IconComponent className={`
-                      w-5 h-5 transition-transform duration-200 flex-shrink-0
-                      ${isActive ? 'scale-110' : 'group-hover:scale-110'}
-                    `} />
-                    
-                    {!sidebarCollapsed && (
-                      <span className="text-sm font-medium truncate">{tab.label}</span>
-                    )}
-                    
-                    {/* Active indicator */}
-                    {isActive && (
-                      <div className="absolute right-2 w-2 h-2 bg-white rounded-full shadow-sm"></div>
-                    )}
-                    
-                    {/* Tooltip for collapsed state */}
-                    {sidebarCollapsed && (
-                      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
-                        {tab.label}
-                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+              {navigationItems}
             </div>
           </nav>
 
@@ -438,13 +489,7 @@ function App() {
 
           {/* Tab Content */}
           <div className="transition-all duration-500 ease-in-out">
-            {activeTab === 'homepage' && <Homepage />}
-            {activeTab === 'orgchart' && <OrgTree />}
-            {activeTab === 'training' && <TrainingMaterials onAssignContent={openAssignmentModal} />}
-            {activeTab === 'process' && <ProcessFlow onAssignContent={openAssignmentModal} />}
-            {activeTab === 'procedures' && <ProceduresInstructions onAssignContent={openAssignmentModal} />}
-            {activeTab === 'faq' && <FAQ onAssignContent={openAssignmentModal} />}
-            {activeTab === 'users' && isAdmin && <UserManagement />}
+            {renderTabContent}
           </div>
 
           {/* Footer - Sadece Ana Sayfa değilse göster */}
@@ -479,7 +524,7 @@ function App() {
         {/* İçerik Atama Modal */}
         <ContentAssignmentModal
           isOpen={showAssignmentModal.isOpen}
-          onClose={() => setShowAssignmentModal(prev => ({ ...prev, isOpen: false }))}
+          onClose={closeAssignmentModal}
           contentId={showAssignmentModal.contentId}
           contentType={showAssignmentModal.contentType}
           contentTitle={showAssignmentModal.contentTitle}
