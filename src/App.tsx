@@ -1,20 +1,33 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { Suspense, lazy } from 'react';
 import LoginPage from './components/LoginPage';
-import UserManagement from './components/UserManagement';
-import PersonelDashboard from './components/PersonelDashboard';
 import ContentAssignmentModal from './components/ContentAssignmentModal';
-import OrgTree from './components/OrgTree';
-import FAQ from './components/FAQ';
-import TrainingMaterials from './components/TrainingMaterials';
-import ProcessFlow from './components/ProcessFlow';
-import ProceduresInstructions from './components/ProceduresInstructions';
-import Homepage from './components/Homepage';
 import DeveloperToolsModal from './components/DeveloperToolsModal';
 import ScrollToTop from './components/ScrollToTop';
 import { Building2, Users, BookOpen, Workflow, FileText, HelpCircle, ChevronLeft, ChevronRight, Home, Download, Upload, Package, EyeOff, LogOut, UserCog, Settings } from 'lucide-react';
 import { useTransferButtons } from './hooks/useTransferButtons';
 import { useDeveloperTools } from './hooks/useDeveloperTools';
+
+// Lazy loading ile bileşenleri yükle
+const Homepage = lazy(() => import('./components/Homepage'));
+const OrgTree = lazy(() => import('./components/OrgTree'));
+const TrainingMaterials = lazy(() => import('./components/TrainingMaterials'));
+const ProcessFlow = lazy(() => import('./components/ProcessFlow'));
+const ProceduresInstructions = lazy(() => import('./components/ProceduresInstructions'));
+const FAQ = lazy(() => import('./components/FAQ'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const PersonelDashboard = lazy(() => import('./components/PersonelDashboard'));
+
+// Loading bileşeni
+const LoadingSpinner = () => (
+  <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <div className="text-gray-600">Modül yükleniyor...</div>
+    </div>
+  </div>
+);
 
 function App() {
   const { currentUser, isLoading, logout, isAdmin, isPersonel } = useAuth();
@@ -145,24 +158,30 @@ function App() {
 
   // Render edilen tab içeriğini memoize et
   const renderTabContent = useMemo(() => {
-    switch (activeTab) {
-      case 'homepage':
-        return <Homepage />;
-      case 'orgchart':
-        return <OrgTree />;
-      case 'training':
-        return <TrainingMaterials onAssignContent={openAssignmentModal} />;
-      case 'process':
-        return <ProcessFlow onAssignContent={openAssignmentModal} />;
-      case 'procedures':
-        return <ProceduresInstructions onAssignContent={openAssignmentModal} />;
-      case 'faq':
-        return <FAQ onAssignContent={openAssignmentModal} />;
-      case 'users':
-        return isAdmin ? <UserManagement /> : null;
-      default:
-        return <Homepage />;
-    }
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        {(() => {
+          switch (activeTab) {
+            case 'homepage':
+              return <Homepage />;
+            case 'orgchart':
+              return <OrgTree />;
+            case 'training':
+              return <TrainingMaterials onAssignContent={openAssignmentModal} />;
+            case 'process':
+              return <ProcessFlow onAssignContent={openAssignmentModal} />;
+            case 'procedures':
+              return <ProceduresInstructions onAssignContent={openAssignmentModal} />;
+            case 'faq':
+              return <FAQ onAssignContent={openAssignmentModal} />;
+            case 'users':
+              return isAdmin ? <UserManagement /> : null;
+            default:
+              return <Homepage />;
+          }
+        })()}
+      </Suspense>
+    );
   }, [activeTab, isAdmin, openAssignmentModal]);
 
   // Navigation items'ı memoize et
@@ -229,7 +248,11 @@ function App() {
 
   // Personel için özel dashboard
   if (isPersonel) {
-    return <PersonelDashboard />;
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <PersonelDashboard />
+      </Suspense>
+    );
   }
 
   return (

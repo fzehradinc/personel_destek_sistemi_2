@@ -40,6 +40,8 @@ useEffect(() => {
 const loadData = async () => {
 if (!storage.isReady) return;
 
+      // Sadece bir kez yükle
+      if (procedures.length > 0 || isPublished) return;
 try {
 console.log('📊 [PROCEDURES] Veriler yükleniyor...');
 

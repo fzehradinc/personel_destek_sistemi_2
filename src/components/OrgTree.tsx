@@ -87,6 +87,9 @@ const OrgTree = () => {
     const loadModuleStates = async () => {
       if (!storage.isReady) return;
 
+      // Sadece bir kez yükle
+      if (modules.some(m => m.isLoaded || m.isPublished)) return;
+
       try {
         console.log('📊 [ORGTREE] Modül durumları yükleniyor...');
         

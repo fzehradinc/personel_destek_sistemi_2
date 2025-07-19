@@ -201,10 +201,10 @@ export const useAuth = () => {
 
   // İlk yükleme
   useEffect(() => {
-    if (storage.isReady) {
+    if (storage.isReady && !currentUser && !isLoading) {
       checkSession();
     }
-  }, [storage.isReady, checkSession]);
+  }, [storage.isReady, currentUser, isLoading, checkSession]);
 
   return {
     currentUser,

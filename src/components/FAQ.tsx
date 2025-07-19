@@ -26,6 +26,8 @@ const FAQ = () => {
     const loadData = async () => {
       if (!storage.isReady) return;
 
+      // Sadece bir kez yükle
+      if (faqData.length > 0 || isPublished) return;
       try {
         console.log('📊 [FAQ] Veriler yükleniyor...');
         

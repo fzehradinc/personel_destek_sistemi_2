@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 
+// Cache sistemi
+const storageCache = new Map<string, any>();
+const cacheExpiry = new Map<string, number>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 dakika
+
 // Web Storage API kullanarak dosya yönetimi
 const webStorage = {
   getItem: (key: string) => {
@@ -39,10 +44,28 @@ export const useElectronStorage = () => {
   const readJsonFile = useCallback(async (filename: string) => {
     if (!isReady) return null;
     
+    const cacheKey = filename;
+    const now = Date.now();
+    
+    // Cache kontrolü
+    if (storageCache.has(cacheKey) && cacheExpiry.has(cacheKey)) {
+      const expiry = cacheExpiry.get(cacheKey)!;
+      if (now < expiry) {
+        console.log(`📋 Cache'den okundu: ${filename}`);
+        return storageCache.get(cacheKey);
+      }
+    }
+    
     try {
       const key = filename.replace('.json', '');
       const data = webStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
+      const result = data ? JSON.parse(data) : null;
+      
+      // Cache'e kaydet
+      storageCache.set(cacheKey, result);
+      cacheExpiry.set(cacheKey, now + CACHE_DURATION);
+      
+      return result;
     } catch (error) {
       console.error(`❌ JSON okuma hatası (${filename}):`, error);
       return null;
@@ -55,7 +78,16 @@ export const useElectronStorage = () => {
     
     try {
       const key = filename.replace('.json', '');
-      return webStorage.setItem(key, JSON.stringify(data));
+      const success = webStorage.setItem(key, JSON.stringify(data));
+      
+      // Cache'i güncelle
+      if (success) {
+        const cacheKey = filename;
+        storageCache.set(cacheKey, data);
+        cacheExpiry.set(cacheKey, Date.now() + CACHE_DURATION);
+      }
+      
+      return success;
     } catch (error) {
       console.error(`❌ JSON yazma hatası (${filename}):`, error);
       return false;
