@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Lock, AlertCircle, Building2 } from 'lucide-react';
 
 // Mock useAuth hook for demonstration
@@ -30,14 +31,6 @@ const useAuth = () => {
   };
 
   return { login, isLoading, isInitialized, currentUser };
-};
-
-// Mock navigate function
-const useNavigate = () => {
-  return (path) => {
-    console.log('Navigating to:', path);
-    alert(`Navigation to: ${path}`);
-  };
 };
 
 const LoginPage = () => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useCallback, Suspense, startTransition } from 'react';
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { lazy } from 'react';
 import ContentAssignmentModal from './components/ContentAssignmentModal';
@@ -159,9 +159,7 @@ const AdminDashboard = React.memo(() => {
   const handleTabChange = useCallback((tabId: string) => {
     if (tabId !== activeTab) {
       console.log(`🔄 [APP] Tab değişimi: ${activeTab} → ${tabId}`);
-      startTransition(() => {
-        setActiveTab(tabId);
-      });
+      setActiveTab(tabId);
     }
   }, [activeTab]);
 
