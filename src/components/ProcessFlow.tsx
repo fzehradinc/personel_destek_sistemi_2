@@ -62,7 +62,7 @@ const ProcessFlowComponent = () => {
   });
 
   // Electron Storage Hook
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // Verileri yükle
   useEffect(() => {
