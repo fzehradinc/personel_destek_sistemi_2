@@ -50,12 +50,13 @@ InitialLoadingSpinner.displayName = 'InitialLoadingSpinner';
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'admin' | 'personel' }) => {
   const { currentUser, isLoading, isInitialized } = useAuth();
   
-  console.log('🛡️ [PROTECTED-ROUTE] Checking access:', {
+  console.log('🛡️ [PROTECTED-ROUTE] Access check:', {
     currentUser: currentUser?.username,
     role: currentUser?.role,
     requiredRole,
     isLoading,
-    isInitialized
+    isInitialized,
+    shouldRedirect: !currentUser && isInitialized && !isLoading
   });
 
   // Show loading only if truly not initialized AND loading
@@ -66,7 +67,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
   
   // If initialized but no user, redirect to login
   if (isInitialized && !currentUser) {
-    console.log('🔒 [PROTECTED-ROUTE] No user, redirecting to login');
+    console.log('🔒 [PROTECTED-ROUTE] No user found, redirecting to /login');
     return <Navigate to="/login" replace />;
   }
 
@@ -92,11 +93,12 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, isLoading, isInitialized } = useAuth();
   
-  console.log('🌐 [PUBLIC-ROUTE] Checking login status:', {
+  console.log('🌐 [PUBLIC-ROUTE] Login status check:', {
     currentUser: currentUser?.username,
     role: currentUser?.role,
     isLoading,
-    isInitialized
+    isInitialized,
+    shouldRedirect: !!currentUser && isInitialized
   });
 
   // Show loading only if truly not initialized AND loading
@@ -107,13 +109,13 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
   // If initialized and user exists, redirect to appropriate dashboard
   if (currentUser) {
-    console.log('👤 [PUBLIC-ROUTE] User logged in, redirecting to dashboard');
+    console.log('👤 [PUBLIC-ROUTE] User already logged in, redirecting...');
     const redirectPath = currentUser.role === 'admin' ? '/admin' : '/dashboard';
-    console.log('🔄 [PUBLIC-ROUTE] Redirecting to:', redirectPath);
+    console.log('🔄 [PUBLIC-ROUTE] Target path:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
 
-  console.log('🔓 [PUBLIC-ROUTE] No user, showing login page');
+  console.log('🔓 [PUBLIC-ROUTE] No user found, showing login page');
   return <>{children}</>;
 };
 
@@ -455,6 +457,9 @@ const AdminDashboard = React.memo(() => {
           {/* Üst Header */}
           <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
+              <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                ✅ Admin Dashboard Yüklendi
+              </div>
               <div className="flex items-center gap-4">
                 {activeTabData && (
                   <>

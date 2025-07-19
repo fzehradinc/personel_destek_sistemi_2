@@ -158,6 +158,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login function - simplified and more reliable
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     console.log('🔐 [AUTH] Login attempt:', username);
+    setIsLoading(true);
     
     try {
       // Get current users
@@ -192,12 +193,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setCurrentUser(updatedUser);
       
       console.log('✅ [AUTH] Login successful for:', user.username, 'Role:', user.role);
+      console.log('🔄 [AUTH] currentUser updated, should trigger route change');
       return { success: true, message: 'Giriş başarılı' };
     } catch (error) {
       console.error('❌ [AUTH] Login error:', error);
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
-  }, [storage, defaultUsers]);
+      setIsLoading(false);
 
   // Logout function
   const logout = useCallback(async () => {
