@@ -77,28 +77,7 @@ function App() {
     setShowAssignmentModal(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  // Giriş kontrolü
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-gray-600">Sistem yükleniyor...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <LoginPage />;
-  }
-
-  // Personel için özel dashboard
-  if (isPersonel) {
-    return <PersonelDashboard />;
-  }
-
-  // Admin için mevcut sistem (genişletilmiş)
+  // Tabs listesini memoize et - tüm hooks'ları conditional return'lerden önce tanımla
   const tabs = useMemo(() => [
     { 
       id: 'homepage', 
@@ -231,6 +210,27 @@ function App() {
       );
     });
   }, [adminTabs, activeTab, sidebarCollapsed, handleTabChange]);
+
+  // Giriş kontrolü
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600">Sistem yükleniyor...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+
+  // Personel için özel dashboard
+  if (isPersonel) {
+    return <PersonelDashboard />;
+  }
 
   return (
     <ScrollToTop activeTab={activeTab}>
