@@ -1,4 +1,9 @@
 import { useState } from 'react';
+import { useAuth } from './hooks/useAuth';
+import LoginPage from './components/LoginPage';
+import UserManagement from './components/UserManagement';
+import PersonelDashboard from './components/PersonelDashboard';
+import ContentAssignmentModal from './components/ContentAssignmentModal';
 import OrgTree from './components/OrgTree';
 import FAQ from './components/FAQ';
 import TrainingMaterials from './components/TrainingMaterials';
@@ -7,13 +12,25 @@ import ProceduresInstructions from './components/ProceduresInstructions';
 import Homepage from './components/Homepage';
 import DeveloperToolsModal from './components/DeveloperToolsModal';
 import ScrollToTop from './components/ScrollToTop';
-import { Building2, Users, BookOpen, Workflow, FileText, HelpCircle, ChevronLeft, ChevronRight, Home, Download, Upload, Package, EyeOff } from 'lucide-react';
+import { Building2, Users, BookOpen, Workflow, FileText, HelpCircle, ChevronLeft, ChevronRight, Home, Download, Upload, Package, EyeOff, LogOut, UserCog, Settings } from 'lucide-react';
 import { useTransferButtons } from './hooks/useTransferButtons';
 import { useDeveloperTools } from './hooks/useDeveloperTools';
 
 function App() {
+  const { currentUser, isLoading, logout, isAdmin, isPersonel } = useAuth();
   const [activeTab, setActiveTab] = useState('homepage');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState<{
+    isOpen: boolean;
+    contentId: string;
+    contentType: 'training' | 'process' | 'procedure' | 'faq';
+    contentTitle: string;
+  }>({
+    isOpen: false,
+    contentId: '',
+    contentType: 'training',
+    contentTitle: ''
+  });
 
   // Transfer buttons hook
   const { 
@@ -33,6 +50,28 @@ function App() {
     handleCancel
   } = useDeveloperTools();
 
+  // Giriş kontrolü
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600">Sistem yükleniyor...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+
+  // Personel için özel dashboard
+  if (isPersonel) {
+    return <PersonelDashboard />;
+  }
+
+  // Admin için mevcut sistem (genişletilmiş)
   const tabs = [
     { 
       id: 'homepage', 
@@ -78,7 +117,28 @@ function App() {
     }
   ];
 
+  // Admin için ek sekmeler
+  if (isAdmin) {
+    tabs.push({
+      id: 'users',
+      label: 'Kullanıcı Yönetimi',
+      icon: UserCog,
+      color: 'from-gray-500 to-gray-600',
+      description: 'Kullanıcı hesapları ve yetkilendirme'
+    });
+  }
+
   const activeTabData = tabs.find(tab => tab.id === activeTab);
+
+  // İçerik atama modalını açma fonksiyonu
+  const openAssignmentModal = (contentId: string, contentType: 'training' | 'process' | 'procedure' | 'faq', contentTitle: string) => {
+    setShowAssignmentModal({
+      isOpen: true,
+      contentId,
+      contentType,
+      contentTitle
+    });
+  };
 
   return (
     <ScrollToTop activeTab={activeTab}>
@@ -97,7 +157,9 @@ function App() {
                 </div>
                 <div>
                   <h1 className="text-lg font-bold">PDS</h1>
-                  <p className="text-xs text-purple-200">Personel Destek Sistemi</p>
+                  <p className="text-xs text-purple-200">
+                    {isAdmin ? 'Admin Panel' : 'Personel Destek Sistemi'}
+                  </p>
                 </div>
               </div>
             )}
@@ -171,6 +233,41 @@ function App() {
 
           {/* Sidebar Footer */}
           <div className="p-4 border-t border-purple-500 border-opacity-30">
+            {/* Kullanıcı Bilgisi */}
+            {!sidebarCollapsed && (
+              <div className="mb-4 p-3 bg-white bg-opacity-10 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-medium truncate">
+                      {currentUser.name}
+                    </div>
+                    <div className="text-purple-200 text-xs truncate">
+                      {isAdmin ? '👨‍💼 Yönetici' : '👤 Personel'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Çıkış Butonu */}
+            <button
+              onClick={logout}
+              className={`
+                w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 
+                flex items-center gap-2 text-xs shadow-sm hover:shadow-md mb-4
+                ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
+              `}
+              title={sidebarCollapsed ? 'Çıkış Yap' : 'Güvenli çıkış yap'}
+            >
+              <LogOut className="w-3 h-3" />
+              {!sidebarCollapsed && <span>Çıkış Yap</span>}
+            </button>
+
             {/* Sistem Durumu */}
             <div className="flex items-center gap-2 text-purple-200 text-xs mb-2">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -185,7 +282,7 @@ function App() {
             )}
 
             {/* Veri Yönetimi Butonları */}
-            {showTransferButtons && (
+            {showTransferButtons && isAdmin && (
               <div className="space-y-2">
                 {!sidebarCollapsed && (
                   <div className="text-xs text-purple-200 mb-2 flex items-center gap-1">
@@ -262,7 +359,7 @@ function App() {
             )}
 
             {/* Collapsed state için tooltip */}
-            {sidebarCollapsed && showTransferButtons && (
+            {sidebarCollapsed && showTransferButtons && isAdmin && (
               <div className="mt-2 flex justify-center">
                 <div className="w-6 h-6 bg-white bg-opacity-10 rounded-full flex items-center justify-center">
                   <Package className="w-3 h-3" />
@@ -271,7 +368,7 @@ function App() {
             )}
 
             {/* Geliştirici Araçları Bilgisi - Sadece collapsed değilse göster */}
-            {!sidebarCollapsed && (
+            {!sidebarCollapsed && isAdmin && (
               <div className="mt-4 pt-3 border-t border-purple-500 border-opacity-30">
                 <div className="text-xs text-purple-300 text-center">
                   🔧 Geliştirici: Ctrl + Shift + L
@@ -300,8 +397,7 @@ function App() {
                       </div>
                       <div className="hidden sm:block text-blue-100">•</div>
                       <div className="hidden sm:flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        <span>Entegrasyon Ekibi</span>
+                        <span>{isAdmin ? '👨‍💼 Admin Panel' : '👤 Personel Panel'}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
@@ -309,8 +405,8 @@ function App() {
                         <span className="text-blue-100">Son Güncelleme:</span>
                         <span className="font-medium">{new Date().toLocaleDateString('tr-TR')}</span>
                       </div>
-                      <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                        <Users className="w-4 h-4" />
+                      <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xs font-medium">
+                        {currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                       </div>
                     </div>
                   </div>
@@ -344,10 +440,11 @@ function App() {
           <div className="transition-all duration-500 ease-in-out">
             {activeTab === 'homepage' && <Homepage />}
             {activeTab === 'orgchart' && <OrgTree />}
-            {activeTab === 'training' && <TrainingMaterials />}
-            {activeTab === 'process' && <ProcessFlow />}
-            {activeTab === 'procedures' && <ProceduresInstructions />}
-            {activeTab === 'faq' && <FAQ />}
+            {activeTab === 'training' && <TrainingMaterials onAssignContent={openAssignmentModal} />}
+            {activeTab === 'process' && <ProcessFlow onAssignContent={openAssignmentModal} />}
+            {activeTab === 'procedures' && <ProceduresInstructions onAssignContent={openAssignmentModal} />}
+            {activeTab === 'faq' && <FAQ onAssignContent={openAssignmentModal} />}
+            {activeTab === 'users' && isAdmin && <UserManagement />}
           </div>
 
           {/* Footer - Sadece Ana Sayfa değilse göster */}
@@ -361,7 +458,9 @@ function App() {
                     </div>
                     <div>
                       <div className="font-semibold text-gray-900">Personel Destek Sistemi</div>
-                      <div className="text-sm text-gray-500">Entegrasyon Yönetim Platformu</div>
+                      <div className="text-sm text-gray-500">
+                        {isAdmin ? 'Yönetim Platformu' : 'Personel Platformu'}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-6 text-sm text-gray-500">
@@ -369,13 +468,22 @@ function App() {
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <span>Sistem Durumu: Aktif</span>
                     </div>
-                    <div>© 2024 Entegrasyon Ekibi</div>
+                    <div>© 2024 {currentUser.department || 'Entegrasyon Ekibi'}</div>
                   </div>
                 </div>
               </div>
             </footer>
           )}
         </div>
+
+        {/* İçerik Atama Modal */}
+        <ContentAssignmentModal
+          isOpen={showAssignmentModal.isOpen}
+          onClose={() => setShowAssignmentModal(prev => ({ ...prev, isOpen: false }))}
+          contentId={showAssignmentModal.contentId}
+          contentType={showAssignmentModal.contentType}
+          contentTitle={showAssignmentModal.contentTitle}
+        />
 
         {/* Developer Tools Modal */}
         <DeveloperToolsModal
