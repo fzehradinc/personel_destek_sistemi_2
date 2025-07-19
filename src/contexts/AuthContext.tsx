@@ -5,6 +5,7 @@ import { useWebStorage } from '../hooks/useWebStorage';
 interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
+  isInitialized: boolean; // Add this to track initialization
   login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   addUser: (userData: Omit<User, 'id' | 'createdAt'>) => Promise<{ success: boolean; message: string }>;
@@ -31,14 +32,13 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
   const storage = useWebStorage();
   
-  // Refs to prevent multiple initialization and double effects
+  // Single initialization ref
   const initRef = useRef(false);
-  const sessionCheckRef = useRef(false);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Varsayılan kullanıcıları oluştur - Memoized
+  // Create default users - Memoized
   const createDefaultUsers = useCallback(async (): Promise<User[]> => {
     console.time('⏱️ [AUTH] Varsayılan kullanıcılar');
     
@@ -86,17 +86,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('❌ [AUTH] Varsayılan kullanıcılar oluşturulamadı:', error);
       console.timeEnd('⏱️ [AUTH] Varsayılan kullanıcılar');
-      return defaultUsers; // En azından memory'de dön
+      return defaultUsers;
     }
   }, [storage]);
 
-  // Kullanıcıları yükle - Cache optimize edilmiş
+  // Load users - Cache optimized
   const loadUsers = useCallback(async (): Promise<User[]> => {
-    if (!storage.isReady) {
-      console.warn('⚠️ [AUTH] Storage henüz hazır değil');
-      return [];
-    }
-
     console.time('⏱️ [AUTH] Kullanıcılar yükleme');
     
     try {
@@ -114,54 +109,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.timeEnd('⏱️ [AUTH] Kullanıcılar yükleme');
       return await createDefaultUsers();
     }
-  }, [storage.isReady, createDefaultUsers]);
+  }, [createDefaultUsers, storage]);
 
-  // Oturum kontrolü - Tek sefer çalışacak şekilde optimize edildi
+  // Session check - Simplified
   const checkSession = useCallback(async () => {
-    if (sessionCheckRef.current) {
-      console.log('⏭️ [AUTH] Session check already in progress, skipping');
-      return;
-    }
-    
-    sessionCheckRef.current = true;
     console.time('⏱️ [AUTH] Session check duration');
     console.log('🔍 [AUTH] Starting session check...');
     
     try {
-      // Always try to check session, even if storage not ready
       const session = await storage.readJsonFile('user_session.json') as UserSession | null;
       console.log('📄 [AUTH] Session file read:', session ? 'Found' : 'Not found');
       
       if (session && session.user && new Date(session.expiresAt) > new Date()) {
-        // Oturum geçerli
-        setCurrentUser(session.user);
+        // Valid session
         console.log('✅ [AUTH] Valid session found:', session.user.username);
+        setCurrentUser(session.user);
+        return session.user;
       } else {
-        // Oturum süresi dolmuş veya yok
+        // Invalid or expired session
         if (session) {
           await storage.writeJsonFile('user_session.json', null);
           console.log('🗑️ [AUTH] Expired session cleaned');
         }
-        console.log('ℹ️ [AUTH] No session found - login required');
+        console.log('ℹ️ [AUTH] No valid session - login required');
         setCurrentUser(null);
+        return null;
       }
     } catch (error) {
       console.error('❌ [AUTH] Session check error:', error);
       setCurrentUser(null);
+      return null;
     } finally {
-      setIsLoading(false);
-      sessionCheckRef.current = false; // Reset for future checks
-      console.log('✅ [AUTH] Loading set to false');
       console.timeEnd('⏱️ [AUTH] Session check duration');
     }
-  }, [storage]); // Remove storage.isReady dependency
+  }, [storage]);
 
-  // Giriş yapma - Optimize edilmiş
+  // Login function - Simplified and more reliable
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     console.time('⏱️ [AUTH] Login process');
     console.log('🔐 [AUTH] Starting login for:', username);
-    setIsLoading(true);
     
+    // Don't set loading here - let the component handle it
     try {
       const users = await loadUsers();
       const user = users.find(u => u.username === username && u.password === password && u.isActive);
@@ -169,19 +157,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!user) {
         console.log('❌ [AUTH] Invalid credentials for:', username);
         console.timeEnd('⏱️ [AUTH] Login process');
-        setIsLoading(false);
         return { success: false, message: 'Kullanıcı adı veya şifre hatalı' };
       }
 
       const loginTime = new Date().toISOString();
       
-      // Kullanıcı bilgilerini güncelle
+      // Update user info
       const updatedUser = {
         ...user,
         lastLogin: loginTime
       };
       
-      // Oturum oluştur (24 saat geçerli)
+      // Create session (24 hours valid)
       const session: UserSession = {
         user: updatedUser,
         loginTime,
@@ -190,16 +177,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('💾 [AUTH] Saving session and updating user data...');
       
-      // Önce currentUser'ı set et - bu yönlendirmeyi tetikler
-      setCurrentUser(updatedUser);
-      console.log('✅ [AUTH] CurrentUser set:', updatedUser.username, 'Role:', updatedUser.role, 'isAdmin:', updatedUser.role === 'admin');
-      
-      // Sonra storage'a kaydet (async olarak)
+      // Save to storage first, then update state
       try {
         await storage.writeJsonFile('user_session.json', session);
         console.log('💾 [AUTH] Session saved to storage');
         
-        // Kullanıcı listesini güncelle
+        // Update users list
         const updatedUsers = users.map(u => 
           u.id === user.id ? updatedUser : u
         );
@@ -207,41 +190,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('💾 [AUTH] User list updated');
       } catch (storageError) {
         console.warn('⚠️ [AUTH] Storage save failed, but login continues:', storageError);
-        // Storage hatası olsa bile giriş başarılı sayılır
       }
+      
+      // Set current user - this should trigger re-render and redirect
+      setCurrentUser(updatedUser);
+      console.log('✅ [AUTH] CurrentUser set:', updatedUser.username, 'Role:', updatedUser.role);
 
       console.log('✅ [AUTH] Login successful:', user.username);
       console.timeEnd('⏱️ [AUTH] Login process');
-      setIsLoading(false);
       
       return { success: true, message: 'Giriş başarılı' };
     } catch (error) {
       console.error('❌ [AUTH] Login error:', error);
       console.timeEnd('⏱️ [AUTH] Login process');
-      setIsLoading(false);
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
-  }, [storage, loadUsers]); // Remove storage.isReady dependency
+  }, [loadUsers, storage]);
 
-  // Çıkış yapma
+  // Logout function
   const logout = useCallback(async () => {
     console.time('⏱️ [AUTH] Logout process');
     
     try {
       await storage.writeJsonFile('user_session.json', null);
       setCurrentUser(null);
-      sessionCheckRef.current = false; // Reset session check
       console.log('✅ [AUTH] Logout successful');
     } catch (error) {
       console.error('❌ [AUTH] Logout error:', error);
-      // Hata olsa bile state'i temizle
       setCurrentUser(null);
     } finally {
       console.timeEnd('⏱️ [AUTH] Logout process');
     }
   }, [storage]);
 
-  // Kullanıcı ekleme - Authorize edilmiş
+  // Add user function
   const addUser = useCallback(async (userData: Omit<User, 'id' | 'createdAt'>): Promise<{ success: boolean; message: string }> => {
     if (currentUser?.role !== 'admin') {
       return { success: false, message: 'Yetkiniz yok' };
@@ -275,7 +257,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [currentUser?.role, loadUsers, storage]);
 
-  // Kullanıcı güncelleme
+  // Update user function
   const updateUser = useCallback(async (userId: string, updates: Partial<User>): Promise<{ success: boolean; message: string }> => {
     if (currentUser?.role !== 'admin') {
       return { success: false, message: 'Yetkiniz yok' };
@@ -304,7 +286,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [currentUser?.role, loadUsers, storage]);
 
-  // Tüm kullanıcıları getir
+  // Get all users function
   const getAllUsers = useCallback(async (): Promise<User[]> => {
     if (currentUser?.role !== 'admin') {
       return [];
@@ -312,10 +294,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return await loadUsers();
   }, [currentUser?.role, loadUsers]);
 
-  // İlk yükleme ve oturum kontrolü
+  // Initial authentication check
   useEffect(() => {
-    let isMounted = true;
-    
     const initAuth = async () => {
       if (initRef.current) {
         console.log('⏭️ [AUTH] Already initialized');
@@ -323,74 +303,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       initRef.current = true;
-      console.log('🚀 [AUTH] Starting initial session check...');
+      console.log('🚀 [AUTH] Starting authentication initialization...');
       
-      // Wait a bit for storage to initialize, but don't wait forever
+      // Wait for storage to be ready with a reasonable timeout
       let attempts = 0;
-      const maxAttempts = 10; // 5 seconds max
+      const maxAttempts = 20; // 10 seconds max
       
-      while (!storage.isReady && attempts < maxAttempts && isMounted) {
+      while (!storage.isReady && attempts < maxAttempts) {
         console.log(`⏳ [AUTH] Waiting for storage... attempt ${attempts + 1}/${maxAttempts}`);
         await new Promise(resolve => setTimeout(resolve, 500));
         attempts++;
       }
       
-      if (isMounted) {
-        if (storage.isReady) {
-          console.log('✅ [AUTH] Storage ready, checking session');
-        } else {
-          console.warn('⚠️ [AUTH] Storage not ready after timeout, proceeding anyway');
-        }
+      if (storage.isReady) {
+        console.log('✅ [AUTH] Storage ready, checking session');
         await checkSession();
+      } else {
+        console.warn('⚠️ [AUTH] Storage not ready after timeout, starting without session');
+        setCurrentUser(null);
       }
+      
+      setIsLoading(false);
+      setIsInitialized(true);
+      console.log('✅ [AUTH] Authentication initialization completed');
     };
     
     initAuth();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []); // No dependencies - run once only
-
-  // Loading timeout
-  useEffect(() => {
-    if (isLoading) {
-      console.log('⏰ [AUTH] Loading timeout started (3 seconds)');
-      loadingTimeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ [AUTH] Loading timeout - forcing ready state');
-        setIsLoading(false);
-        setCurrentUser(null); // Giriş sayfasını göster
-      }, 3000);
-    } else {
-      console.log('✅ [AUTH] Loading completed, timeout cleared');
-    }
-
-    return () => {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    };
-  }, [isLoading]);
+  }, []); // Run only once
 
   // Computed values
   const isAdmin = currentUser?.role === 'admin';
   const isPersonel = currentUser?.role === 'personel';
-  
-  // Debug: Rol kontrolü
-  useEffect(() => {
-    if (currentUser) {
-      console.log('🔍 [AUTH-CONTEXT] Kullanıcı rolü analizi:');
-      console.log('  - currentUser.role:', currentUser.role);
-      console.log('  - isAdmin:', isAdmin);
-      console.log('  - isPersonel:', isPersonel);
-      console.log('  - currentUser object:', currentUser);
-    }
-  }, [currentUser, isAdmin, isPersonel]);
 
   const value: AuthContextType = {
     currentUser,
     isLoading,
+    isInitialized,
     login,
     logout,
     addUser,
