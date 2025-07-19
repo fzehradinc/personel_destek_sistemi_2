@@ -175,48 +175,75 @@ export const useWebStorage = (): WebStorageHook => {
   const [isReady, setIsReady] = useState(false);
   const initRef = useRef(false);
 
-  // Tek sefer inizialization
+  // Tek sefer initialization - Hızlandırılmış
   useEffect(() => {
-    if (initRef.current) return;
+    if (initRef.current) {
+      console.log('🔄 [WEB-STORAGE] Zaten başlatılmış, atlanıyor');
+      return;
+    }
     
     const initializeStorage = async () => {
       console.time('⏱️ [WEB-STORAGE] Başlatma');
+      console.log('🚀 [WEB-STORAGE] Başlatma işlemi başlıyor...');
       
       try {
         // localStorage desteği kontrolü
         if (typeof Storage === 'undefined') {
+          console.error('❌ [WEB-STORAGE] localStorage desteklenmiyor');
           throw new Error('localStorage desteklenmiyor');
         }
         
         // Test yazma/okuma
         const testKey = '__storage_test__';
-        webStorage.setItem(testKey, 'test');
+        const testWriteSuccess = webStorage.setItem(testKey, 'test');
+        if (!testWriteSuccess) {
+          console.error('❌ [WEB-STORAGE] Test yazma başarısız');
+          throw new Error('localStorage yazma başarısız');
+        }
+        
         const testValue = webStorage.getItem(testKey);
         webStorage.removeItem(testKey);
         
         if (testValue !== 'test') {
+          console.error('❌ [WEB-STORAGE] Test okuma başarısız:', testValue);
           throw new Error('localStorage çalışmıyor');
         }
         
+        console.log('✅ [WEB-STORAGE] localStorage test başarılı');
         initRef.current = true;
         setIsReady(true);
-        console.log('✅ [WEB-STORAGE] Web depolama sistemi hazır');
+        console.log('✅ [WEB-STORAGE] Web depolama sistemi tamamen hazır');
       } catch (error) {
         console.error('❌ [WEB-STORAGE] Başlatma hatası:', error);
         setIsReady(false);
+        // Hata durumunda bile ready olarak işaretle - fallback mode
+        setTimeout(() => {
+          console.warn('⚠️ [WEB-STORAGE] Fallback mode - zorla hazır işaretleniyor');
+          initRef.current = true;
+          setIsReady(true);
+        }, 1000);
       } finally {
         console.timeEnd('⏱️ [WEB-STORAGE] Başlatma');
       }
     };
 
+    // Hemen başlat - gecikme yok
     initializeStorage();
   }, []);
 
   // JSON dosyası oku - Optimize edilmiş cache sistemi ile
   const readJsonFile = useCallback(async (filename: string) => {
     if (!isReady) {
-      console.warn('⚠️ [WEB-STORAGE] Sistem henüz hazır değil:', filename);
-      return null;
+      console.warn('⚠️ [WEB-STORAGE] Sistem henüz hazır değil, fallback dönüyor:', filename);
+      // Fallback: Direkt localStorage'dan okumaya çalış
+      try {
+        const key = filename.replace('.json', '');
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : null;
+      } catch (error) {
+        console.error('❌ [WEB-STORAGE] Fallback okuma hatası:', error);
+        return null;
+      }
     }
     
     const cacheKey = filename;

@@ -251,12 +251,12 @@ const AppContent = React.memo(() => {
 
   // Performance: Loading durumları - early return
   if (isLoading) {
-    console.log('⏳ [APP] Auth sistemi yükleniyor...');
+    console.log('⏳ [APP] Auth sistemi yükleniyor... (isLoading=true)');
     return <InitialLoadingSpinner />;
   }
 
   if (!currentUser) {
-    console.log('👤 [APP] Kullanıcı girişi gerekli');
+    console.log('👤 [APP] Kullanıcı girişi gerekli (currentUser=null)');
     return (
       <Suspense fallback={<InitialLoadingSpinner />}>
         <LoginPage />

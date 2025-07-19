@@ -118,15 +118,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Oturum kontrolü - Tek sefer çalışacak şekilde optimize edildi
   const checkSession = useCallback(async () => {
-    if (sessionCheckRef.current || !storage.isReady) {
+    if (sessionCheckRef.current) {
+      console.log('⏭️ [AUTH] Oturum kontrolü zaten yapılıyor, atlanıyor');
+      return;
+    }
+    
+    // Storage hazır değilse kısa süre bekle
+    if (!storage.isReady) {
+      console.log('⏳ [AUTH] Storage henüz hazır değil, 500ms bekleniyor...');
+      setTimeout(() => {
+        if (!sessionCheckRef.current) {
+          checkSession();
+        }
+      }, 500);
       return;
     }
     
     sessionCheckRef.current = true;
     console.time('⏱️ [WEB-AUTH] checkSession süresi');
+    console.log('🔍 [AUTH] Oturum kontrolü başlatılıyor...');
     
     try {
       const session = await storage.readJsonFile('user_session.json') as UserSession | null;
+      console.log('📄 [AUTH] Session dosyası okundu:', session ? 'Var' : 'Yok');
       
       if (session && session.user && new Date(session.expiresAt) > new Date()) {
         // Oturum geçerli
@@ -138,6 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await storage.writeJsonFile('user_session.json', null);
           console.log('🗑️ [AUTH] Süresi dolmuş oturum temizlendi');
         }
+          console.log('ℹ️ [AUTH] Hiç oturum bulunamadı - giriş gerekli');
         setCurrentUser(null);
       }
     } catch (error) {
@@ -145,6 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setCurrentUser(null);
     } finally {
       setIsLoading(false);
+      console.log('✅ [AUTH] Loading durumu false yapıldı');
       console.timeEnd('⏱️ [WEB-AUTH] checkSession süresi');
     }
   }, [storage.isReady, storage]);
@@ -294,24 +310,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // İlk yükleme ve oturum kontrolü
   useEffect(() => {
-    if (!initRef.current && storage.isReady) {
+    if (!initRef.current) {
       initRef.current = true;
+      console.log('🚀 [AUTH] İlk oturum kontrolü başlatılıyor...');
       checkSession();
+    } else {
+      console.log('⏭️ [AUTH] Auth zaten başlatılmış');
     }
-  }, [storage.isReady, checkSession]);
+  }, [checkSession]);
 
   // Loading timeout
   useEffect(() => {
     if (isLoading) {
+      console.log('⏰ [AUTH] Loading timeout başlatıldı (3 saniye)');
       loadingTimeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ [AUTH] Loading timeout, forcing ready state');
+        console.warn('⚠️ [AUTH] Loading timeout - zorla ready state');
         setIsLoading(false);
-      }, 5000); // 5 saniyeye düşürüldü
+        setCurrentUser(null); // Giriş sayfasını göster
+      }, 3000); // 3 saniyeye düşürüldü
+    } else {
+      console.log('✅ [AUTH] Loading tamamlandı, timeout temizlendi');
     }
 
     return () => {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
       }
     };
   }, [isLoading]);
