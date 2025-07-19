@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, AlertCircle, Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const LoginPage = () => {
@@ -8,6 +9,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login, isLoading: authLoading, isInitialized } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +28,13 @@ const LoginPage = () => {
         setLoading(false);
       } else {
         console.log('✅ [LOGIN] Giriş başarılı - AuthContext currentUser güncellemesi bekleniyor...');
-        // Don't set loading to false here - let the auth state change handle the redirect
-        // The component will unmount when currentUser is set, so loading state doesn't matter
+        
+        // Manual redirect as backup - React Router should handle this via ProtectedRoute
+        console.log('🔄 [LOGIN] Manual redirect attempt...');
+        setTimeout(() => {
+          console.log('⏰ [LOGIN] Timeout redirect check');
+          // This should not be needed if routing works correctly
+        }, 1000);
       }
     } catch (error) {
       console.error('❌ [LOGIN] Giriş hatası:', error);

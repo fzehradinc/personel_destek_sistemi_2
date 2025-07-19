@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useCallback, Suspense, startTransition } from 'react';
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { lazy } from 'react';
 import ContentAssignmentModal from './components/ContentAssignmentModal';
@@ -46,12 +46,66 @@ const InitialLoadingSpinner = React.memo(() => (
 ));
 InitialLoadingSpinner.displayName = 'InitialLoadingSpinner';
 
-// Performance: Ana uygulama bileşeni - Re-render optimizasyonu
-const AppContent = React.memo(() => {
-  const renderStartTime = performance.now();
-  console.log('🚀 [APP] Component render başlatıldı');
+// Protected Route Component
+const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'admin' | 'personel' }) => {
+  const { currentUser, isLoading, isInitialized } = useAuth();
   
-  const { currentUser, isLoading, logout, isAdmin, isPersonel } = useAuth();
+  console.log('🛡️ [PROTECTED-ROUTE] Checking access:', {
+    currentUser: currentUser?.username,
+    role: currentUser?.role,
+    requiredRole,
+    isLoading,
+    isInitialized
+  });
+
+  if (!isInitialized || isLoading) {
+    return <InitialLoadingSpinner />;
+  }
+
+  if (!currentUser) {
+    console.log('🔒 [PROTECTED-ROUTE] No user, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && currentUser.role !== requiredRole) {
+    console.log('🚫 [PROTECTED-ROUTE] Wrong role, redirecting to appropriate dashboard');
+    return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+  }
+
+  console.log('✅ [PROTECTED-ROUTE] Access granted');
+  return <>{children}</>;
+};
+
+// Public Route Component (only for login page)
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { currentUser, isLoading, isInitialized } = useAuth();
+  
+  console.log('🌐 [PUBLIC-ROUTE] Checking login status:', {
+    currentUser: currentUser?.username,
+    role: currentUser?.role,
+    isLoading,
+    isInitialized
+  });
+
+  if (!isInitialized || isLoading) {
+    return <InitialLoadingSpinner />;
+  }
+
+  if (currentUser) {
+    console.log('👤 [PUBLIC-ROUTE] User logged in, redirecting to dashboard');
+    return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+  }
+
+  console.log('🔓 [PUBLIC-ROUTE] No user, showing login page');
+  return <>{children}</>;
+};
+
+// Admin Dashboard Component
+const AdminDashboard = React.memo(() => {
+  const renderStartTime = performance.now();
+  console.log('🚀 [ADMIN-DASHBOARD] Component render başlatıldı');
+  
+  const { currentUser, logout, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('homepage');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState<{
@@ -249,46 +303,15 @@ const AppContent = React.memo(() => {
     });
   }, [availableTabs, activeTab, sidebarCollapsed, handleTabChange]);
 
-  // Performance: Loading durumları - early return
-  if (isLoading) {
-    console.log('⏳ [APP] Auth sistemi yükleniyor... (isLoading=true)');
-    return <InitialLoadingSpinner />;
-  }
-
-  // Kullanıcı yoksa giriş sayfası göster
-  if (!currentUser) {
-    console.log('👤 [APP] Kullanıcı girişi gerekli (currentUser=null), giriş sayfası gösteriliyor');
-    return (
-      <Suspense fallback={<InitialLoadingSpinner />}>
-        <LoginPage />
-      </Suspense>
-    );
-  }
-
-  // Kullanıcı var - rol kontrolü yap
-  console.log('✅ [APP] Kullanıcı giriş yapmış:', currentUser.username, 'Rol:', currentUser.role);
-  console.log('🔍 [APP] isAdmin:', isAdmin, 'isPersonel:', isPersonel);
-  
-  // Personel kullanıcısı için dashboard
-  if (isPersonel) {
-    console.log('👤 [APP] Personel dashboard yükleniyor:', currentUser.name, 'Role:', currentUser.role);
-    return (
-      <Suspense fallback={<InitialLoadingSpinner />}>
-        <PersonelDashboard />
-      </Suspense>
-    );
-  }
-
-  // Admin kullanıcısı için admin paneli
-  if (isAdmin) {
-    console.log('👨‍💼 [APP] Admin dashboard yükleniyor:', currentUser.name, 'Role:', currentUser.role);
-  } else {
-    console.log('⚠️ [APP] Bilinmeyen rol:', currentUser.role, 'Admin dashboard varsayılan olarak yükleniyor');
+  // Admin kontrolü
+  if (!isAdmin) {
+    console.log('🚫 [ADMIN-DASHBOARD] Not admin, redirecting');
+    return <Navigate to="/dashboard" replace />;
   }
   
   // Performance: Render tamamlandı
   const renderEndTime = performance.now();
-  console.log(`✅ [APP] Component render tamamlandı (${(renderEndTime - renderStartTime).toFixed(2)}ms)`);
+  console.log(`✅ [ADMIN-DASHBOARD] Component render tamamlandı (${(renderEndTime - renderStartTime).toFixed(2)}ms)`);
 
   return (
     <ScrollToTop activeTab={activeTab}>
@@ -481,14 +504,74 @@ const AppContent = React.memo(() => {
     </ScrollToTop>
   );
 });
-AppContent.displayName = 'AppContent';
+AdminDashboard.displayName = 'AdminDashboard';
+
+// App Routes Component
+const AppRoutes = React.memo(() => {
+  console.log('🛣️ [APP-ROUTES] Rendering routes');
+  
+  return (
+    <Routes>
+      {/* Public Route - Login */}
+      <Route 
+        path="/login" 
+        element={
+          <PublicRoute>
+            <Suspense fallback={<InitialLoadingSpinner />}>
+              <LoginPage />
+            </Suspense>
+          </PublicRoute>
+        } 
+      />
+      
+      {/* Protected Route - Admin Dashboard */}
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <Suspense fallback={<LoadingSpinner />}>
+              <AdminDashboard />
+            </Suspense>
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Protected Route - Personel Dashboard */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute requiredRole="personel">
+            <Suspense fallback={<LoadingSpinner />}>
+              <PersonelDashboard />
+            </Suspense>
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Default Route - Redirect to appropriate dashboard */}
+      <Route 
+        path="/" 
+        element={<Navigate to="/login" replace />} 
+      />
+      
+      {/* Catch all - Redirect to login */}
+      <Route 
+        path="*" 
+        element={<Navigate to="/login" replace />} 
+      />
+    </Routes>
+  );
+});
+AppRoutes.displayName = 'AppRoutes';
 
 // Performance: Ana App bileşeni - Router wrapper
 const App: React.FC = () => {
+  console.log('🚀 [APP] Main App component rendering');
+  
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <AppRoutes />
       </AuthProvider>
     </Router>
   );
