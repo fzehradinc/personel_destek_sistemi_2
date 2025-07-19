@@ -192,7 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Önce currentUser'ı set et - bu yönlendirmeyi tetikler
       setCurrentUser(updatedUser);
-      console.log('✅ [AUTH] CurrentUser set:', updatedUser.username);
+      console.log('✅ [AUTH] CurrentUser set:', updatedUser.username, 'Role:', updatedUser.role, 'isAdmin:', updatedUser.role === 'admin');
       
       // Sonra storage'a kaydet (async olarak)
       try {

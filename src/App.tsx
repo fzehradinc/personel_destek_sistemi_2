@@ -264,10 +264,10 @@ const AppContent = React.memo(() => {
     );
   }
 
-  console.log('✅ [APP] Kullanıcı giriş yapmış:', currentUser.username, 'Rol:', currentUser.role);
+  console.log('✅ [APP] Kullanıcı giriş yapmış:', currentUser.username, 'Rol:', currentUser.role, 'Yönlendirme yapılıyor...');
   
   if (isPersonel) {
-    console.log('👤 [APP] Personel dashboard yükleniyor');
+    console.log('👤 [APP] Personel dashboard yükleniyor:', currentUser.name);
     return (
       <Suspense fallback={<InitialLoadingSpinner />}>
         <PersonelDashboard />
@@ -275,7 +275,7 @@ const AppContent = React.memo(() => {
     );
   }
 
-  console.log('👨‍💼 [APP] Admin dashboard yükleniyor');
+  console.log('👨‍💼 [APP] Admin dashboard yükleniyor:', currentUser.name);
   
   // Performance: Render tamamlandı
   const renderEndTime = performance.now();
