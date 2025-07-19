@@ -321,23 +321,33 @@ Devam etmek istiyor musunuz?`;
           {!isPublished && (
             <div className="mt-4 text-sm text-gray-600">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                🌐 Web Uygulaması - Tarayıcı Depolama
-                  {storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
+                {storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-green-800">
+                <div>
+                  <strong>📊 Excel Format Gereksinimleri:</strong><br/>
+                  • <strong>Soru:</strong> SSS sorusu<br/>
+                  • <strong>Cevap:</strong> Sorunun detaylı cevabı<br/>
+                  • Her satır bir soru-cevap çifti içermelidir
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-green-800">
-                  <div>
-                    <strong>📊 Excel Format Gereksinimleri:</strong><br/>
-                    • <strong>Soru:</strong> SSS sorusu<br/>
-                    • <strong>Cevap:</strong> Sorunun detaylı cevabı<br/>
-                    • Her satır bir soru-cevap çifti içermelidir
-                  </div>
-                  <div>
-                    {storage.isElectron ? (
-                  <strong>🌐 Tarayıcı Depolama:</strong><br/>
-                  • Veriler localStorage'da saklanır<br/>
-                  • Tarayıcı verileri temizlenene kadar korunur<br/>
-                  • İçe/Dışa aktarım ile yedekleme yapılabilir<br/>
-                  • İnternet bağlantısı gerektirmez
+                <div>
+                  {storage.isElectron ? (
+                    <>
+                      <strong>🖥️ Electron Depolama:</strong><br/>
+                      • Veriler kalıcı dosya sisteminde saklanır<br/>
+                      • Uygulama kapatılsa bile veriler korunur<br/>
+                      • Otomatik yedekleme ve geri yükleme<br/>
+                      • Yüksek güvenlik ve performans
+                    </>
+                  ) : (
+                    <>
+                      <strong>🌐 Tarayıcı Depolama:</strong><br/>
+                      • Veriler localStorage'da saklanır<br/>
+                      • Tarayıcı verileri temizlenene kadar korunur<br/>
+                      • İçe/Dışa aktarım ile yedekleme yapılabilir<br/>
+                      • İnternet bağlantısı gerektirmez
+                    </>
+                  )}
                 </div>
               </div>
             </div>
