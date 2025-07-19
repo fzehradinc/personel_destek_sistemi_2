@@ -182,47 +182,11 @@ export const useWebStorage = (): WebStorageHook => {
       console.log('🔄 [WEB-STORAGE] Already initialized, skipping');
       return;
     }
-      console.log('🔄 [WEB-STORAGE] Zaten başlatılmış, atlanıyor');
-      return;
-    }
     
     const initializeStorage = async () => {
       console.time('⏱️ [WEB-STORAGE] Initialization');
       console.log('🚀 [WEB-STORAGE] Starting initialization...');
-        if (typeof Storage === 'undefined') {
-          console.error('❌ [WEB-STORAGE] localStorage desteklenmiyor');
-          throw new Error('localStorage desteklenmiyor');
-        }
-        
-        // Test yazma/okuma
-        const testKey = '__storage_test__';
-        const testWriteSuccess = webStorage.setItem(testKey, 'test');
-        if (!testWriteSuccess) {
-          console.error('❌ [WEB-STORAGE] Test yazma başarısız');
-          throw new Error('localStorage yazma başarısız');
-        }
-        
-        const testValue = webStorage.getItem(testKey);
-        webStorage.removeItem(testKey);
-        
-        if (testValue !== 'test') {
-          console.error('❌ [WEB-STORAGE] Test okuma başarısız:', testValue);
-          throw new Error('localStorage çalışmıyor');
-        }
-        
-        console.log('✅ [WEB-STORAGE] localStorage test başarılı');
-        initRef.current = true;
-        setIsReady(true);
-        console.log('✅ [WEB-STORAGE] Web depolama sistemi tamamen hazır');
-      } catch (error) {
-        console.error('❌ [WEB-STORAGE] Başlatma hatası:', error);
-        setIsReady(false);
-        // Hata durumunda bile ready olarak işaretle - fallback mode
-        setTimeout(() => {
-          console.warn('⚠️ [WEB-STORAGE] Fallback mode - zorla hazır işaretleniyor');
-          initRef.current = true;
-          setIsReady(true);
-        }, 1000);
+      
       try {
         // Test localStorage availability
         if (typeof Storage === 'undefined') {
@@ -258,24 +222,16 @@ export const useWebStorage = (): WebStorageHook => {
       }
     };
 
-    // Hemen başlat - gecikme yok
     // Start immediately
     initializeStorage();
   }, []);
 
   // JSON dosyası oku - Optimize edilmiş cache sistemi ile
   const readJsonFile = useCallback(async (filename: string) => {
+    const key = filename.replace('.json', '');
+    
     if (!isReady) {
-      console.warn('⚠️ [WEB-STORAGE] Sistem henüz hazır değil, fallback dönüyor:', filename);
-      // Fallback: Direkt localStorage'dan okumaya çalış
-      try {
-        const key = filename.replace('.json', '');
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : null;
-      } catch (error) {
-        console.error('❌ [WEB-STORAGE] Fallback okuma hatası:', error);
-        return null;
-      }
+      console.log(`⚠️ [WEB-STORAGE] Not ready, using fallback for: ${filename}`);
     }
     
     const cacheKey = filename;
@@ -472,8 +428,14 @@ export const useWebStorage = (): WebStorageHook => {
 
   return {
     isReady,
-    // Always try to read, even if not ready - fallback mode
-    const key = filename.replace('.json', '');
-    
-    if (!isReady) {
-      console.log(`⚠️ [WEB-STORAGE] Not ready, using fallback for: ${filename}`);
+    readJsonFile,
+    writeJsonFile,
+    updateYayinDurumu,
+    saveFile,
+    readFile,
+    fileExists,
+    getAppInfo,
+    clearCache,
+    getCacheInfo
+  };
+};
