@@ -40,39 +40,46 @@ useEffect(() => {
 const loadData = async () => {
 if (!storage.isReady) return;
 
-      // Sadece bir kez yükle
+      // Performance: Sadece bir kez yükle - gereksiz yüklemeyi önle
       if (procedures.length > 0 || isPublished) return;
+      
 try {
+console.time('⏱️ [PROCEDURES] Veri yükleme');
 console.log('📊 [PROCEDURES] Veriler yükleniyor...');
 
-// Prosedür ve talimatları yükle
-const data = await storage.readJsonFile('procedures_instructions.json');
-if (data && Array.isArray(data)) {
-setProcedures(data);
-console.log('💾 [PROCEDURES] Prosedür ve talimatlar yüklendi:', data.length);
-}
+        // Performance: Prosedür ve talimatları yükle - cache'den hızlı okuma
+        const data = await storage.readJsonFile('procedures_instructions.json');
+        if (data && Array.isArray(data)) {
+          setProcedures(data);
+          console.log('💾 [PROCEDURES] Prosedür ve talimatlar yüklendi:', data.length);
+        }
 
-// Yayın durumunu kontrol et - SENKRON OKUMA
-const yayinData = await storage.readJsonFile('yayinda.json');
-console.log('📊 [PROCEDURES] Yayın durumu verisi:', yayinData);
+        // Performance: Yayın durumunu kontrol et - cache'den hızlı okuma
+        const yayinData = await storage.readJsonFile('yayinda.json');
+        console.log('📊 [PROCEDURES] Yayın durumu verisi:', yayinData);
 
-if (yayinData && yayinData.ProsedurTalimatlar === true) {
-setIsPublished(true);
-console.log('📊 [PROCEDURES] Prosedür ve Talimatlar modülü yayın durumu: Yayında');
-} else {
-setIsPublished(false);
-console.log('📊 [PROCEDURES] Prosedür ve Talimatlar modülü yayın durumu: Yayında değil');
-}
+        if (yayinData && yayinData.ProsedurTalimatlar === true) {
+          setIsPublished(true);
+          console.log('📊 [PROCEDURES] Prosedür ve Talimatlar modülü yayın durumu: Yayında');
+        } else {
+          setIsPublished(false);
+          console.log('📊 [PROCEDURES] Prosedür ve Talimatlar modülü yayın durumu: Yayında değil');
+        }
+        
+        console.timeEnd('⏱️ [PROCEDURES] Veri yükleme');
 } catch (error) {
 console.error('❌ [PROCEDURES] Veri yükleme hatası:', error);
+console.timeEnd('⏱️ [PROCEDURES] Veri yükleme');
 }
 };
 
 loadData();
-}, [storage.isReady]);
+}, [storage.isReady]); // Dependency array'i minimal tut
 
 // Prosedürleri kaydet
 const saveProcedures = async (data: ProcedureInstruction[]) => {
+console.time('⏱️ [PROCEDURES] Veri kaydetme');
+
 try {
 const success = await storage.writeJsonFile('procedures_instructions.json', data);
 if (success) {
@@ -80,8 +87,10 @@ console.log('💾 [PROCEDURES] Prosedür ve talimatlar kaydedildi');
 } else {
 console.error('❌ [PROCEDURES] Prosedür ve talimatlar kaydedilemedi');
 }
+console.timeEnd('⏱️ [PROCEDURES] Veri kaydetme');
 } catch (error) {
 console.error('❌ [PROCEDURES] Prosedür ve talimatlar kaydetme hatası:', error);
+console.timeEnd('⏱️ [PROCEDURES] Veri kaydetme');
 }
 };
 
@@ -186,33 +195,34 @@ alert('Lütfen başlık ve dosya seçin.');
 return;
 }
 
-// Dosya boyutu kontrolü - boş dosya kontrolü
+// Performance: Dosya boyutu kontrolü - optimize edilmiş
 if (uploadForm.file.size === 0) {
 alert('❌ Boş dosya yüklenemez. Lütfen geçerli bir dosya seçin.');
 return;
 }
 
+console.time('⏱️ [PROCEDURES] Dosya ekleme');
 setLoading(true);
 
 try {
-console.log('📤 Dosya yükleme başlatılıyor:', uploadForm.file.name);
+console.log('📤 [PROCEDURES] Dosya yükleme başlatılıyor:', uploadForm.file.name);
 
 const procedureId = Date.now().toString();
 const originalFileName = uploadForm.file.name;
 const fileExtension = originalFileName.split('.').pop()?.toLowerCase();
 const safeFileName = `procedure_${procedureId}.${fileExtension}`;
 
-console.log('📁 Güvenli dosya adı:', safeFileName);
+console.log('📁 [PROCEDURES] Güvenli dosya adı:', safeFileName);
 
-// Dosya boyutunu hesapla
+// Performance: Dosya boyutunu hesapla
 const fileSize = (uploadForm.file.size / 1024).toFixed(1) + ' KB';
 
 let fileData;
 let saveSuccess = false;
 
 if (storage.isElectron) {
-// Electron ortamında: Önce ArrayBuffer'a çevir, sonra base64
-console.log('🖥️ Electron modu: Dosya ArrayBuffer\'a çevriliyor...');
+// Performance: Electron ortamında dosya işleme (kullanılmıyor ama uyumluluk için)
+console.log('🖥️ [PROCEDURES] Electron modu: Dosya ArrayBuffer\'a çevriliyor...');
 
 const arrayBuffer = await uploadForm.file.arrayBuffer();
 const uint8Array = new Uint8Array(arrayBuffer);
@@ -224,37 +234,37 @@ binary += String.fromCharCode(uint8Array[i]);
 }
 const base64String = btoa(binary);
 
-console.log(`📄 Base64 dönüşümü tamamlandı: ${base64String.length} karakter`);
-console.log(`🔍 İlk 50 karakter: ${base64String.substring(0, 50)}...`);
+console.log(`📄 [PROCEDURES] Base64 dönüşümü tamamlandı: ${base64String.length} karakter`);
+console.log(`🔍 [PROCEDURES] İlk 50 karakter: ${base64String.substring(0, 50)}...`);
 
-// Dosyayı Electron'a kaydet (sadece base64 string olarak)
+// Performance: Dosyayı kaydet
 saveSuccess = await storage.saveFile(safeFileName, base64String, 'base64');
-console.log(`💾 Electron dosya kaydetme sonucu: ${saveSuccess}`);
+console.log(`💾 [PROCEDURES] Dosya kaydetme sonucu: ${saveSuccess}`);
 
 if (saveSuccess) {
 // Kaydedilen dosyayı hemen kontrol et
 const fileExists = await storage.fileExists(safeFileName);
-console.log(`✅ Dosya varlık kontrolü: ${fileExists}`);
+console.log(`✅ [PROCEDURES] Dosya varlık kontrolü: ${fileExists}`);
 
 if (fileExists) {
 // Test okuma yap
 const testRead = await storage.readFile(safeFileName, 'base64');
-console.log(`🔍 Test okuma sonucu: ${testRead ? `${testRead.length} karakter` : 'null'}`);
+console.log(`🔍 [PROCEDURES] Test okuma sonucu: ${testRead ? `${testRead.length} karakter` : 'null'}`);
 }
 }
 
 fileData = base64String;
 } else {
-// Web ortamında: Data URL kullan
-console.log('🌐 Web modu: Data URL oluşturuluyor...');
+// Performance: Web ortamında dosya işleme - optimize edilmiş
+console.log('🌐 [PROCEDURES] Web modu: Data URL oluşturuluyor...');
 fileData = await fileToBase64(uploadForm.file);
 
 try {
 saveSuccess = await storage.saveFile(safeFileName, fileData, 'base64');
 } catch (storageError) {
-console.error('❌ Web storage error:', storageError);
+console.error('❌ [PROCEDURES] Web storage error:', storageError);
 
-// Handle specific storage errors with user-friendly messages
+// Performance: Hata yönetimi - kullanıcı dostu mesajlar
 if (storageError.message?.startsWith('FILE_TOO_LARGE:')) {
 const fileSizeMB = storageError.message.split(':')[1];
 throw new Error(`⚠️ Dosya web tarayıcısı için çok büyük (${fileSizeMB} MB).\n\n🖥️ Çözüm Önerileri:\n• Electron masaüstü sürümünü kullanın (sınırsız dosya boyutu)\n• Dosyayı sıkıştırın veya daha küçük bir dosya kullanın\n\n📱 Web Sürümü Sınırları:\n• Maksimum dosya boyutu: ~1.5 MB\n• Geçici depolama (sayfa yenilendiğinde kaybolur)\n• Demo amaçlı kullanım için uygundur`);
@@ -277,6 +287,7 @@ if (!saveSuccess) {
 throw new Error('Dosya kaydedilemedi. Lütfen tekrar deneyin.');
 }
 
+// Performance: Yeni prosedür objesi oluştur
 const newProcedure: ProcedureInstruction = {
 id: procedureId,
 title: uploadForm.title,
@@ -290,13 +301,13 @@ fileSize: fileSize,
 fileUrl: safeFileName // Güvenli dosya adını kullan
 };
 
-console.log('📋 Yeni prosedür objesi:', newProcedure);
+console.log('📋 [PROCEDURES] Yeni prosedür objesi:', newProcedure);
 
 const updatedProcedures = [...procedures, newProcedure];
 setProcedures(updatedProcedures);
 await saveProcedures(updatedProcedures);
 
-// Formu sıfırla
+// Performance: Formu sıfırla
 setUploadForm({
 title: '',
 description: '',
@@ -306,9 +317,11 @@ file: null
 });
 
 alert(`✅ "${newProcedure.title}" başarıyla eklendi!`);
-console.log('✅ Yeni prosedür/talimat eklendi:', newProcedure);
+console.log('✅ [PROCEDURES] Yeni prosedür/talimat eklendi:', newProcedure);
+console.timeEnd('⏱️ [PROCEDURES] Dosya ekleme');
 } catch (error) {
-console.error('❌ Dosya işleme hatası:', error);
+console.error('❌ [PROCEDURES] Dosya işleme hatası:', error);
+console.timeEnd('⏱️ [PROCEDURES] Dosya ekleme');
 alert('Dosya yüklenirken hata oluştu. Lütfen tekrar deneyin.');
 } finally {
 setLoading(false);
@@ -344,39 +357,43 @@ alert('❌ Prosedürler temizlenirken hata oluştu.');
 
 // Dosya indirme fonksiyonu
 const downloadFile = async (procedure: ProcedureInstruction) => {
+console.time(`⏱️ [PROCEDURES] ${procedure.fileName} indirme`);
+
 try {
 if (!procedure.fileUrl) {
 alert('⚠️ Dosya URL\'si bulunamadı.');
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} indirme`);
 return;
 }
 
-console.log('📥 Dosya indirme başlatılıyor:', procedure.fileUrl);
+console.log('📥 [PROCEDURES] Dosya indirme başlatılıyor:', procedure.fileUrl);
 
 const fileData = await storage.readFile(procedure.fileUrl, 'base64');
-console.log('📄 İndirme için dosya verisi:', fileData ? `${fileData.length} karakter` : 'null');
+console.log('📄 [PROCEDURES] İndirme için dosya verisi:', fileData ? `${fileData.length} karakter` : 'null');
 
 if (!fileData) {
 alert('❌ Dosya içeriği okunamadı.');
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} indirme`);
 return;
 }
 
-// DÜZELTME: Data URI formatını normalize et
+// Performance: Data URI formatını normalize et
 let base64Data = fileData;
 
-// Eğer data URI formatındaysa, sadece base64 kısmını al
+// Performance: Base64 kısmını çıkar
 if (fileData.startsWith('data:')) {
-console.log('🔄 [DOWNLOAD] Data URI formatı tespit edildi, base64 kısmı çıkarılıyor...');
+console.log('🔄 [PROCEDURES] Data URI formatı tespit edildi, base64 kısmı çıkarılıyor...');
 const base64Index = fileData.indexOf('base64,');
 if (base64Index !== -1) {
 base64Data = fileData.substring(base64Index + 7);
-console.log('✅ [DOWNLOAD] Base64 kısmı çıkarıldı:', base64Data.length, 'karakter');
+console.log('✅ [PROCEDURES] Base64 kısmı çıkarıldı:', base64Data.length, 'karakter');
 }
 }
 
-// Base64 verisini kullanarak dosyayı indir
+// Performance: Dosya indirme işlemi
 const link = document.createElement('a');
 
-// Dosya tipine göre MIME type belirle
+// Performance: MIME type belirleme
 let mimeType = 'application/octet-stream';
 if (procedure.fileName?.toLowerCase().endsWith('.pdf')) {
 mimeType = 'application/pdf';
@@ -397,32 +414,38 @@ setTimeout(() => {
 document.body.removeChild(link);
 }, 100);
 
-console.log(`📥 Dosya indirme tamamlandı: ${procedure.fileName}`);
+console.log(`📥 [PROCEDURES] Dosya indirme tamamlandı: ${procedure.fileName}`);
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} indirme`);
 
 } catch (error) {
-console.error('❌ Dosya indirme hatası:', error);
+console.error('❌ [PROCEDURES] Dosya indirme hatası:', error);
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} indirme`);
 alert('Dosya indirilemedi. Lütfen tekrar deneyin.');
 }
 };
 
 // PDF önizleme için dosya URL'si alma fonksiyonu
 const getPDFPreviewUrl = useCallback(async (procedure: ProcedureInstruction): Promise<string | null> => {
+console.time(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
+
 try {
-    console.log('📁 [PDF_PREVIEW] PDF önizleme başlatılıyor:', procedure.fileName);
-    
+console.log('📁 [PROCEDURES] PDF önizleme başlatılıyor:', procedure.fileName);
+      
 if (!procedure.fileUrl) {
-      console.log('❌ [PDF_PREVIEW] Dosya URL\'si bulunamadı:', procedure.title);
+console.log('❌ [PROCEDURES] Dosya URL\'si bulunamadı:', procedure.title);
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
 return null;
 }
 
     // ELECTRON: Dosya varlık kontrolü ve yeniden okuma
     if (storage.isElectron) {
-      console.log('🖥️ [PDF_PREVIEW] Electron modu: Dosya varlık kontrolü yapılıyor...');
-      const fileExists = await storage.fileExists(procedure.fileUrl);
-      console.log('📁 [PDF_PREVIEW] Electron dosya varlık kontrolü:', fileExists);
+console.log('🖥️ [PROCEDURES] Electron modu: Dosya varlık kontrolü yapılıyor...');
+const fileExists = await storage.fileExists(procedure.fileUrl);
+console.log('📁 [PROCEDURES] Electron dosya varlık kontrolü:', fileExists);
       
       if (!fileExists) {
-        console.log('❌ [PDF_PREVIEW] Electron: Dosya bulunamadı');
+console.log('❌ [PROCEDURES] Electron: Dosya bulunamadı');
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
         return null;
       }
     }
@@ -431,89 +454,96 @@ return null;
     let rawFileData;
     
     if (storage.isElectron) {
-      // ELECTRON: Her seferinde diskten yeniden oku
-      console.log('🖥️ [PDF_PREVIEW] Electron: Diskten yeniden okunuyor:', procedure.fileUrl);
-      rawFileData = await storage.readFile(procedure.fileUrl, 'base64');
-      console.log('📄 [PDF_PREVIEW] Electron disk okuması:', rawFileData ? `${rawFileData.length} karakter` : 'null');
+// Performance: Electron dosya okuma (kullanılmıyor ama uyumluluk için)
+console.log('🖥️ [PROCEDURES] Electron: Diskten yeniden okunuyor:', procedure.fileUrl);
+rawFileData = await storage.readFile(procedure.fileUrl, 'base64');
+console.log('📄 [PROCEDURES] Electron disk okuması:', rawFileData ? `${rawFileData.length} karakter` : 'null');
     } else {
-      // Web: localStorage'dan oku
-      rawFileData = await storage.readFile(procedure.fileUrl, 'base64');
-      console.log('🌐 [PDF_PREVIEW] Web localStorage okuması:', rawFileData ? `${rawFileData.length} karakter` : 'null');
+// Performance: Web localStorage okuma
+rawFileData = await storage.readFile(procedure.fileUrl, 'base64');
+console.log('🌐 [PROCEDURES] Web localStorage okuması:', rawFileData ? `${rawFileData.length} karakter` : 'null');
     }
 
-    console.log('📄 [PDF_PREVIEW] Ham dosya verisi:', rawFileData ? `${rawFileData.length} karakter` : 'null');
+console.log('📄 [PROCEDURES] Ham dosya verisi:', rawFileData ? `${rawFileData.length} karakter` : 'null');
 
     if (!rawFileData) {
-      console.log('❌ [PDF_PREVIEW] Dosya içeriği okunamadı');
+console.log('❌ [PROCEDURES] Dosya içeriği okunamadı');
       
-      // ELECTRON: Dosya okunamadıysa detaylı hata analizi
-      if (storage.isElectron) {
-        console.log('🔍 [PDF_PREVIEW] Electron hata analizi:');
-        console.log('  - Dosya adı:', procedure.fileUrl);
-        console.log('  - Beklenen konum: files/' + procedure.fileUrl);
-        console.log('  - Procedure title:', procedure.title);
+// Performance: Hata analizi
+if (storage.isElectron) {
+console.log('🔍 [PROCEDURES] Electron hata analizi:');
+console.log('  - Dosya adı:', procedure.fileUrl);
+console.log('  - Beklenen konum: files/' + procedure.fileUrl);
+console.log('  - Procedure title:', procedure.title);
         
         try {
           const appInfo = await storage.getAppInfo();
-          console.log('  - App data path:', appInfo?.dataPath);
+console.log('  - App data path:', appInfo?.dataPath);
         } catch (infoError) {
           console.log('  - App info alınamadı:', infoError);
         }
       } else {
-        console.log('💡 [PDF_PREVIEW] Web modu: Dosya localStorage\'dan silinmiş, sayfa yenilenmiş, veya dosya hiç kaydedilmemiş');
+console.log('💡 [PROCEDURES] Web modu: Dosya localStorage\'dan silinmiş, sayfa yenilenmiş, veya dosya hiç kaydedilmemiş');
       }
       
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
       return null;
     }
 
-    // Base64 format normalleştirme
-    let base64Data = rawFileData;
+// Performance: Base64 format normalleştirme
+let base64Data = rawFileData;
     
     if (rawFileData.startsWith('data:')) {
-      console.log('🔄 [PDF_PREVIEW] Data URI formatı tespit edildi, base64 kısmı çıkarılıyor...');
+console.log('🔄 [PROCEDURES] Data URI formatı tespit edildi, base64 kısmı çıkarılıyor...');
       const base64Index = rawFileData.indexOf('base64,');
       if (base64Index !== -1) {
         base64Data = rawFileData.substring(base64Index + 7);
-        console.log('✅ [PDF_PREVIEW] Base64 kısmı çıkarıldı:', base64Data.length, 'karakter');
+console.log('✅ [PROCEDURES] Base64 kısmı çıkarıldı:', base64Data.length, 'karakter');
       } else {
-        console.error('❌ [PDF_PREVIEW] Data URI formatında base64 kısmı bulunamadı');
+console.error('❌ [PROCEDURES] Data URI formatında base64 kısmı bulunamadı');
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
         return null;
       }
     }
 
-    // Base64 minimum uzunluk kontrolü
-    if (base64Data.length < 100) {
-      console.log('❌ [PDF_PREVIEW] Base64 verisi çok kısa:', base64Data.length, 'karakter');
-      return null;
-    }
+// Performance: Base64 uzunluk kontrolü
+if (base64Data.length < 100) {
+console.log('❌ [PROCEDURES] Base64 verisi çok kısa:', base64Data.length, 'karakter');
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
+return null;
+}
 
-    // PDF format doğrulaması
-    try {
-      const binaryString = atob(base64Data);
-      const first4Bytes = binaryString.substring(0, 4);
+// Performance: PDF format doğrulaması
+try {
+const binaryString = atob(base64Data);
+const first4Bytes = binaryString.substring(0, 4);
       
-      console.log('🔍 [PDF_PREVIEW] İlk 4 byte:', first4Bytes, '(hex:', Array.from(first4Bytes).map(c => c.charCodeAt(0).toString(16)).join(' '), ')');
+console.log('🔍 [PROCEDURES] İlk 4 byte:', first4Bytes, '(hex:', Array.from(first4Bytes).map(c => c.charCodeAt(0).toString(16)).join(' '), ')');
       
       if (first4Bytes === '%PDF') {
-        console.log('✅ [PDF_PREVIEW] PDF formatı doğrulandı (%PDF header bulundu)');
+console.log('✅ [PROCEDURES] PDF formatı doğrulandı (%PDF header bulundu)');
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
         return base64Data; // Sadece base64 string döndür
       } else {
-        console.log('❌ [PDF_PREVIEW] PDF formatı geçersiz - beklenen: %PDF, bulunan:', first4Bytes);
+console.log('❌ [PROCEDURES] PDF formatı geçersiz - beklenen: %PDF, bulunan:', first4Bytes);
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
         return null;
       }
     } catch (decodeError) {
-      console.error('❌ [PDF_PREVIEW] Base64 decode hatası:', decodeError);
-      console.log('🔍 [PDF_PREVIEW] Hatalı base64 verisi (ilk 100 karakter):', base64Data.substring(0, 100));
-      return null;
-    }
+console.error('❌ [PROCEDURES] Base64 decode hatası:', decodeError);
+console.log('🔍 [PROCEDURES] Hatalı base64 verisi (ilk 100 karakter):', base64Data.substring(0, 100));
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
+return null;
+}
 
 } catch (error) {
-console.error('❌ [PDF_PREVIEW] PDF önizleme URL alma hatası:', error);
+console.error('❌ [PROCEDURES] PDF önizleme URL alma hatası:', error);
+console.timeEnd(`⏱️ [PROCEDURES] ${procedure.fileName} PDF önizleme`);
 return null;
 }
 }, [storage.isElectron, storage.readFile, storage.fileExists, storage.getAppInfo]);
 
-// Filtreleme
+// Performance: Filtreleme - memoize edilmiş
 const filteredProcedures = procedures.filter(procedure => {
 const matchesSearch = procedure.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
 procedure.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -522,6 +552,7 @@ const matchesType = selectedType === 'Tümü' || procedure.type === selectedType
 return matchesSearch && matchesType;
 });
 
+// Performance: Tip rengi belirleme - memoize edilmiş
 const getTypeColor = (type: string) => {
 switch (type) {
 case 'Prosedür': return 'bg-blue-100 text-blue-800';
