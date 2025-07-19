@@ -310,4 +310,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       loadingTimeoutRef.current = setTimeout(() => {
         if (isLoading) {
           console.warn('⚠️ [AUTH] Loading timeout - zorla durduruldu');
-          setIs
+          setIsLoading(false);
+        }
+      }, 10000);
+    }
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [isLoading]);
+
+  // Computed values
+  const isAdmin = currentUser?.role === 'admin';
+  const isPersonel = currentUser?.role === 'personel';
+
+  const value: AuthContextType = {
+    currentUser,
+    isLoading,
+    login,
+    logout,
+    addUser,
+    updateUser,
+    getAllUsers,
+    isAdmin,
+    isPersonel
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
