@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Lock, AlertCircle, Building2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -8,21 +7,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isInitializing, setIsInitializing] = useState(true);
-  const { login } = useAuth();
-
-  // Performans: Sayfa yükleme süresini ölç
-  useEffect(() => {
-    console.time('⏱️ [LOGIN] Sayfa yükleme süresi');
-    
-    // Hızlı başlatma - gereksiz bekleme yok
-    const timer = setTimeout(() => {
-      setIsInitializing(false);
-      console.timeEnd('⏱️ [LOGIN] Sayfa yükleme süresi');
-    }, 100); // Minimal gecikme
-    
-    return () => clearTimeout(timer);
-  }, []);
+  const { login, isLoading: authLoading, isInitialized } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,30 +17,29 @@ const LoginPage = () => {
     
     console.log('🔐 [LOGIN] Giriş denemesi:', username);
 
-    const result = await login(username, password);
-    
-    if (!result.success) {
-      console.log('❌ [LOGIN] Giriş başarısız:', result.message);
-      setError(result.message);
-      setLoading(false);
-    } else {
-      console.log('✅ [LOGIN] Giriş başarılı, AuthContext currentUser güncellemesi bekleniyor...');
-      console.log('🔍 [LOGIN] Login result:', result);
-      // Loading state'i AuthContext tarafından yönetiliyor
-      // setLoading(false) çağırmıyoruz çünkü yönlendirme olacak
+    try {
+      const result = await login(username, password);
       
-      // Debug: 2 saniye sonra kontrol et
-      setTimeout(() => {
-        console.log('🔍 [LOGIN] 2 saniye sonra kontrol - hala LoginPage\'de miyiz?');
-        console.log('🔍 [LOGIN] Şu anki window.location:', window.location.href);
-      }, 2000);
+      if (!result.success) {
+        console.log('❌ [LOGIN] Giriş başarısız:', result.message);
+        setError(result.message);
+        setLoading(false);
+      } else {
+        console.log('✅ [LOGIN] Giriş başarılı - AuthContext currentUser güncellemesi bekleniyor...');
+        // Don't set loading to false here - let the auth state change handle the redirect
+        // The component will unmount when currentUser is set, so loading state doesn't matter
+      }
+    } catch (error) {
+      console.error('❌ [LOGIN] Giriş hatası:', error);
+      setError('Giriş sırasında beklenmeyen bir hata oluştu');
+      setLoading(false);
     }
     
     console.timeEnd('⏱️ [LOGIN] Giriş işlem süresi');
   };
 
-  // İlk yükleme durumu
-  if (isInitializing) {
+  // Show loading screen while auth is initializing
+  if (!isInitialized || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
         <div className="text-center">
@@ -95,6 +79,7 @@ const LoginPage = () => {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="Kullanıcı adınızı girin"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -113,6 +98,7 @@ const LoginPage = () => {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="Şifrenizi girin"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
