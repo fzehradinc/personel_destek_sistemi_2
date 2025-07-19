@@ -596,23 +596,13 @@ return (
 {!isPublished && (
 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
 <div className="font-medium text-green-900 mb-2">
-{storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
+🌐 Web Uygulaması - Tarayıcı Depolama
 </div>
 <div className="text-sm text-green-800 space-y-1">
-{storage.isElectron ? (
-<>
-<div>• <strong>Kalıcı Dosya Sistemi:</strong> Tüm dosyalar uygulama klasöründe saklanır</div>
-<div>• <strong>Yayın Durumu Korunur:</strong> Modül durumları JSON dosyasında kalıcı tutulur</div>
-<div>• <strong>Dağıtılabilir:</strong> .exe halinde başka bilgisayarlara verilebilir</div>
-<div>• <strong>Offline Çalışma:</strong> İnternet bağlantısı gerektirmez</div>
-</>
-) : (
-<>
-<div>• <strong>Geçici Depolama:</strong> Veriler tarayıcı oturumunda saklanır</div>
-<div>• <strong>Sayfa Yenileme:</strong> Dosya içerikleri kaybolabilir</div>
-<div>• <strong>Tavsiye:</strong> Electron sürümünü kullanın</div>
-</>
-)}
+<div>• <strong>Tarayıcı Depolama:</strong> Veriler localStorage'da saklanır</div>
+<div>• <strong>Kalıcılık:</strong> Tarayıcı verileri temizlenene kadar korunur</div>
+<div>• <strong>Dosya Desteği:</strong> PDF, DOC, DOCX formatları desteklenir</div>
+<div>• <strong>Maksimum Boyut:</strong> 5MB dosya yükleme sınırı</div>
 </div>
 </div>
 )}
@@ -708,7 +698,7 @@ className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus
 <div className="text-sm text-blue-800 space-y-1">
 <div>• <strong>PDF:</strong> .pdf dosyaları</div>
 <div>• <strong>Word:</strong> .doc, .docx dosyaları</div>
-<div>• <strong>Maksimum Boyut:</strong> {storage.isElectron ? '50 MB' : '1.5 MB'}</div>
+<div>• <strong>Maksimum Boyut:</strong> 5 MB</div>
 </div>
 </div>
 </div>
@@ -1041,24 +1031,13 @@ loadPDFPreview();
                   <div className="text-sm text-gray-500">
                     Olası nedenler:
                     <br />
-                    • Electron uygulamasında yüklenen dosyalar web sürümünde erişilemez
-                    <br />
                     • Dosya PDF formatında değil (%PDF header yok)
                     <br />
                     • Base64 kodlama bozuk
                     <br />
                     • Dosya bulunamadı veya okunamadı
                     <br />
-                    <div>• <strong>Maksimum Boyut:</strong> {storage.isElectron ? '50 MB' : '2 MB'}</div>
-                    {!storage.isElectron && (
-                      <div className="mt-2 pt-2 border-t border-blue-300">
-                        <div className="text-xs text-blue-700">
-                          ⚠️ <strong>Web Sürümü Sınırlaması:</strong> Büyük dosyalar için Electron masaüstü sürümünü kullanın
-                          <br />
-                          📱 <strong>Veri Uyumluluğu:</strong> Electron'da yüklenen dosyalar web sürümünde görüntülenemez
-                        </div>
-                      </div>
-                    )}
+                    <div>• <strong>Maksimum Boyut:</strong> 5 MB</div>
                   </div>
                 </div>
               )}

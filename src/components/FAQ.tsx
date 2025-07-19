@@ -321,7 +321,7 @@ Devam etmek istiyor musunuz?`;
           {!isPublished && (
             <div className="mt-4 text-sm text-gray-600">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="font-medium text-green-900 mb-2">
+                🌐 Web Uygulaması - Tarayıcı Depolama
                   {storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-green-800">
@@ -333,22 +333,11 @@ Devam etmek istiyor musunuz?`;
                   </div>
                   <div>
                     {storage.isElectron ? (
-                      <>
-                        <strong>🔒 Kalıcı Depolama:</strong><br/>
-                        • Tüm SSS verileri uygulama klasöründe saklanır<br/>
-                        • Yayın durumları JSON dosyasında kalıcı tutulur<br/>
-                        • .exe halinde başka bilgisayarlara verilebilir<br/>
-                        • İnternet bağlantısı gerektirmez
-                      </>
-                    ) : (
-                      <>
-                        <strong>⚠️ Geçici Depolama:</strong><br/>
-                        • Veriler tarayıcı oturumunda saklanır<br/>
-                        • Sayfa yenilendiğinde veriler kaybolabilir<br/>
-                        • Tavsiye: Electron sürümünü kullanın
-                      </>
-                    )}
-                  </div>
+                  <strong>🌐 Tarayıcı Depolama:</strong><br/>
+                  • Veriler localStorage'da saklanır<br/>
+                  • Tarayıcı verileri temizlenene kadar korunur<br/>
+                  • İçe/Dışa aktarım ile yedekleme yapılabilir<br/>
+                  • İnternet bağlantısı gerektirmez
                 </div>
               </div>
             </div>
@@ -498,12 +487,12 @@ Devam etmek istiyor musunuz?`;
               <div className="text-lg text-gray-600 mb-4">
                 {isPublished 
                   ? 'Bu modül yayında ancak henüz SSS içeriği bulunmuyor'
-                  : 'Excel dosyanızı yükleyerek başlayın - verileriniz kalıcı olarak saklanacak!'
+                  : 'Excel dosyanızı yükleyerek başlayın - verileriniz tarayıcıda saklanacak!'
                 }
               </div>
               {!isPublished && (
                 <div className="text-sm text-gray-500 max-w-2xl mx-auto space-y-2">
-                  <div><strong>💾 Kalıcı Depolama:</strong> Yüklenen SSS verileri {storage.isElectron ? 'uygulama klasöründe' : 'tarayıcıda'} saklanır</div>
+                  <div><strong>💾 Tarayıcı Depolama:</strong> Yüklenen SSS verileri localStorage'da saklanır</div>
                   <div><strong>🔍 Arama Özelliği:</strong> Soru ve cevaplarda hızlı arama yapabilirsiniz</div>
                   <div><strong>📂 Genişletilebilir:</strong> Sorulara tıklayarak cevapları görüntüleyebilirsiniz</div>
                   <div><strong>🚀 Yayın Sistemi:</strong> Hazır içerikleri yayına alarak koruma altına alabilirsiniz</div>
