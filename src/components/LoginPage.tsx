@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { User, Lock, AlertCircle, Building2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
