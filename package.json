@@ -3,26 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "main": "public/electron/main.cjs",
-  "homepage": "./",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "electron": "electron .",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "prepare-data": "node scripts/prepare-data.js",
-    "check-data": "node scripts/check-data.js",
-    "update-guide": "node scripts/update-exe-guide.js",
-    "backup-yayin": "node scripts/backup-yayin-durumu.js backup",
-    "restore-yayin": "node scripts/backup-yayin-durumu.js restore",
-    "build-electron": "npm run backup-yayin && npm run build && npm run prepare-data && npm run update-guide && electron-builder",
-    "dist": "npm run backup-yayin && npm run build && npm run prepare-data && npm run update-guide && electron-builder --publish=never"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "adm-zip": "^0.5.16",
-    "archiver": "^7.0.1",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-d3-tree": "^3.6.2",
@@ -35,9 +22,6 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
-    "concurrently": "^8.2.2",
-    "electron": "^28.3.3",
-    "electron-builder": "^24.13.3",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
@@ -47,29 +31,5 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2",
-    "wait-on": "^7.2.0"
-  },
-  "build": {
-    "appId": "com.entegrasyon.personel-destek-sistemi",
-    "productName": "Personel Destek Sistemi",
-    "directories": {
-      "output": "dist-electron"
-    },
-    "files": [
-      "dist/**/*",
-      "public/electron/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "public/data",
-        "to": "data",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "target": "nsis"
-    }
   }
 }

@@ -39,69 +39,83 @@ export const useTransferButtons = () => {
     }
   };
 
-  // YENİ FONKSİYON: Transfer butonlarını tekrar göster
-  const showTransferButtonsAgain = async () => {
-    try {
-      console.log('🔧 Transfer butonları tekrar gösteriliyor...');
-      
-      // UI config'i güncelle
-      const success = await saveUIConfig({ showTransferButtons: true });
-      if (success) {
-        setShowTransferButtons(true);
-        console.log('✅ Transfer butonları tekrar görünür hale getirildi');
-        
-        // localStorage'dan da temizle (fallback için)
-        try {
-          localStorage.removeItem('transferButtonsHidden');
-        } catch (error) {
-          // localStorage hatası önemli değil
-        }
-        
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('❌ Transfer butonlarını gösterme hatası:', error);
-      return false;
-    }
-  };
-
-  // Dışa aktarım fonksiyonu - DÜZELTİLDİ
+  // Web uyumlu dışa aktarım fonksiyonu
   const handleExport = async () => {
-    if (!storage.isElectron) {
-      alert('⚠️ Dışa aktarım özelliği sadece Electron sürümünde kullanılabilir.');
-      return;
-    }
-
     setLoading(true);
     
     try {
-      console.log('📦 Dışa aktarım başlatılıyor...');
+      console.log('📦 Web dışa aktarım başlatılıyor...');
       
-      // Electron'a dışa aktarım komutu gönder
-      const success = await window.electronAPI.exportData();
+      // Tüm verileri topla
+      const exportData: any = {};
       
-      if (success) {
-        alert('✅ Veriler başarıyla dışa aktarıldı!\n\n📁 Dosya masaüstünüze kaydedildi.\n📦 Dosya adı: personel_destek_yedek_YYYYMMDD_HHmmss.zip');
-        console.log('📦 Dışa aktarım tamamlandı');
-      } else {
-        alert('❌ Dışa aktarım işlemi başarısız oldu.\n\nOlası nedenler:\n• Veri klasörü bulunamadı\n• Masaüstüne yazma izni yok\n• Disk alanı yetersiz');
+      // JSON dosyalarını topla
+      const jsonFiles = [
+        'yayinda.json',
+        'training_materials.json',
+        'process_flows.json',
+        'faq_data.json',
+        'procedures_instructions.json',
+        'organization_modules.json',
+        'ui_config.json',
+        'guncel_gelismeler.json',
+        'kurumsal_degerler.json'
+      ];
+      
+      for (const filename of jsonFiles) {
+        const data = await storage.readJsonFile(filename);
+        if (data) {
+          exportData[filename] = data;
+        }
       }
+      
+      // Dosyaları topla (localStorage'dan)
+      const files: any = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('file_')) {
+          const filename = key.replace('file_', '');
+          const fileData = localStorage.getItem(key);
+          if (fileData) {
+            files[filename] = fileData;
+          }
+        }
+      }
+      
+      if (Object.keys(files).length > 0) {
+        exportData['files'] = files;
+      }
+      
+      // JSON olarak dışa aktar
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // Dosya indirme
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const now = new Date();
+      const timestamp = now.toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+      link.download = `personel_destek_yedek_${timestamp}.json`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert('✅ Veriler başarıyla dışa aktarıldı!\n\n📁 JSON dosyası indirildi.\n📦 Tüm modül verileri ve dosyalar dahil edildi.');
+      console.log('📦 Web dışa aktarım tamamlandı');
     } catch (error) {
       console.error('❌ Dışa aktarım hatası:', error);
-      alert('❌ Dışa aktarım sırasında hata oluştu.\n\nHata: ' + error.message);
+      alert('❌ Dışa aktarım sırasında hata oluştu.\n\nHata: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
-  // İçe aktarım fonksiyonu - DÜZELTİLDİ
+  // Web uyumlu içe aktarım fonksiyonu
   const handleImport = async () => {
-    if (!storage.isElectron) {
-      alert('⚠️ İçe aktarım özelliği sadece Electron sürümünde kullanılabilir.');
-      return;
-    }
-
     const confirmMessage = `⚠️ İçe aktarım işlemi hakkında önemli bilgiler:
 
 🔄 Bu işlem:
@@ -110,12 +124,8 @@ export const useTransferButtons = () => {
 • Yüklenen tüm dosyaları değiştirecektir
 • Bu işlem geri alınamaz
 
-💾 Güvenlik:
-• Mevcut verileriniz otomatik olarak yedeklenecektir
-• Hata durumunda otomatik geri yükleme yapılacaktır
-
 📁 Dosya seçimi:
-• Sadece .zip uzantılı yedek dosyaları kabul edilir
+• Sadece .json uzantılı yedek dosyaları kabul edilir
 • Dosya seçim penceresi açılacaktır
 
 Devam etmek istediğinizden emin misiniz?`;
@@ -124,31 +134,70 @@ Devam etmek istediğinizden emin misiniz?`;
       return;
     }
 
-    setLoading(true);
+    // Dosya seçici oluştur
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
     
-    try {
-      console.log('📥 İçe aktarım başlatılıyor...');
+    input.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
       
-      // Electron'a içe aktarım komutu gönder
-      const success = await window.electronAPI.importData();
+      setLoading(true);
       
-      if (success) {
+      try {
+        console.log('📥 Web içe aktarım başlatılıyor...');
+        
+        // Dosyayı oku
+        const text = await file.text();
+        const importData = JSON.parse(text);
+        
+        // JSON dosyalarını geri yükle
+        for (const [filename, data] of Object.entries(importData)) {
+          if (filename === 'files') continue; // Dosyalar ayrı işlenecek
+          
+          if (filename.endsWith('.json')) {
+            await storage.writeJsonFile(filename, data);
+            console.log(`✅ JSON geri yüklendi: ${filename}`);
+          }
+        }
+        
+        // Dosyaları geri yükle
+        if (importData.files) {
+          // Önce mevcut dosyaları temizle
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('file_')) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+          
+          // Yeni dosyaları yükle
+          for (const [filename, fileData] of Object.entries(importData.files)) {
+            localStorage.setItem(`file_${filename}`, fileData as string);
+            console.log(`✅ Dosya geri yüklendi: ${filename}`);
+          }
+        }
+        
         alert('✅ Veriler başarıyla içe aktarıldı!\n\n🔄 Değişikliklerin görünmesi için sayfa yeniden yüklenecek.\n\n⏱️ Lütfen bekleyin...');
-        console.log('📥 İçe aktarım tamamlandı - Sayfa yenileniyor...');
+        console.log('📥 Web içe aktarım tamamlandı - Sayfa yenileniyor...');
         
         // Sayfayı yenile
         setTimeout(() => {
           window.location.reload();
         }, 2000);
-      } else {
-        alert('❌ İçe aktarım işlemi iptal edildi veya başarısız oldu.\n\nOlası nedenler:\n• Dosya seçimi iptal edildi\n• Geçersiz zip dosyası\n• Dosya okuma hatası\n• Yedekten geri yükleme yapıldı');
+      } catch (error) {
+        console.error('❌ İçe aktarım hatası:', error);
+        alert('❌ İçe aktarım sırasında hata oluştu.\n\nHata: ' + (error as Error).message);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('❌ İçe aktarım hatası:', error);
-      alert('❌ İçe aktarım sırasında hata oluştu.\n\nHata: ' + error.message + '\n\nMevcut verileriniz korunmuştur.');
-    } finally {
-      setLoading(false);
-    }
+    };
+    
+    // Dosya seçiciyi tetikle
+    input.click();
   };
 
   // Butonları gizleme fonksiyonu
@@ -162,7 +211,7 @@ Bu işlem sonrası:
 
 ⚠️ Önemli:
 • Bu işlem kalıcıdır
-• Butonları tekrar göstermek için uygulamayı yeniden kurmanız gerekebilir
+• Butonları tekrar göstermek için tarayıcı verilerini temizlemeniz gerekebilir
 • Canlı sistem modu aktif olacaktır
 
 🎯 Kullanım amacı:
@@ -182,8 +231,26 @@ Devam etmek istiyor musunuz?`;
         }
       } catch (error) {
         console.error('❌ Buton gizleme hatası:', error);
-        alert('❌ Butonlar gizlenirken hata oluştu.\n\nHata: ' + error.message);
+        alert('❌ Butonlar gizlenirken hata oluştu.\n\nHata: ' + (error as Error).message);
       }
+    }
+  };
+
+  // Transfer butonlarını tekrar göster
+  const showTransferButtonsAgain = async () => {
+    try {
+      console.log('🔧 Transfer butonları tekrar gösteriliyor...');
+      
+      const success = await saveUIConfig({ showTransferButtons: true });
+      if (success) {
+        setShowTransferButtons(true);
+        console.log('✅ Transfer butonları tekrar görünür hale getirildi');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('❌ Transfer butonlarını gösterme hatası:', error);
+      return false;
     }
   };
 
@@ -193,29 +260,6 @@ Devam etmek istiyor musunuz?`;
     handleExport,
     handleImport,
     hideTransferButtons,
-    showTransferButtonsAgain // YENİ FONKSİYON EXPORT EDİLDİ
+    showTransferButtonsAgain
   };
 };
-
-// Global tip tanımları için ekleme
-declare global {
-  interface Window {
-    electronAPI: {
-      readJsonFile: (filename: string) => Promise<any>;
-      writeJsonFile: (filename: string, data: any) => Promise<boolean>;
-      updateYayinDurumu: (moduleName: string, isPublished: boolean) => Promise<boolean>;
-      saveFile: (filename: string, data: string, encoding?: string) => Promise<boolean>;
-      readFile: (filename: string, encoding?: string) => Promise<string | null>;
-      fileExists: (filename: string) => Promise<boolean>;
-      getAppInfo: () => Promise<{
-        version: string;
-        name: string;
-        dataPath: string;
-        isDev: boolean;
-      }>;
-      exportData: () => Promise<boolean>; // YENİ
-      importData: () => Promise<boolean>; // YENİ
-      log: (message: string) => void;
-    };
-  }
-}

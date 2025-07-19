@@ -6,7 +6,7 @@ export const useDeveloperTools = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Tüm yayın durumlarını temizle
+  // Tüm yayın durumlarını temizle - Web uyumlu
   const clearAllPublishStatus = useCallback(async () => {
     try {
       console.log('🔧 Geliştirici araçları: Tüm yayın durumları temizleniyor...');
@@ -45,7 +45,7 @@ export const useDeveloperTools = () => {
         await storage.writeJsonFile('kurumsal_degerler.json', updatedValues);
       }
 
-      // YENİ: Transfer butonlarını da geri getir
+      // Transfer butonlarını da geri getir
       const uiConfig = await storage.readJsonFile('ui_config.json') || {};
       uiConfig.showTransferButtons = true;
       await storage.writeJsonFile('ui_config.json', uiConfig);
@@ -53,14 +53,8 @@ export const useDeveloperTools = () => {
       console.log('✅ Tüm yayın durumları temizlendi');
       console.log('✅ Transfer butonları geri getirildi');
       
-      // Başarı mesajı - Electron uyumlu alert
-      if (storage.isElectron) {
-        // Electron'da native dialog kullan
-        alert('🔧 Geliştirici Araçları\n\n✅ Tüm yayın durumları başarıyla temizlendi!\n✅ Transfer butonları geri getirildi!\n\n🔄 Sayfa yeniden yükleniyor...');
-      } else {
-        // Web'de normal alert
-        alert('🔧 Geliştirici Araçları\n\n✅ Tüm yayın durumları başarıyla temizlendi!\n✅ Transfer butonları geri getirildi!\n\n🔄 Sayfa yeniden yükleniyor...');
-      }
+      // Başarı mesajı
+      alert('🔧 Geliştirici Araçları\n\n✅ Tüm yayın durumları başarıyla temizlendi!\n✅ Transfer butonları geri getirildi!\n\n🔄 Sayfa yeniden yükleniyor...');
       
       // Sayfayı yenile
       setTimeout(() => {
@@ -126,10 +120,10 @@ export const useDeveloperTools = () => {
     showPasswordDialog();
   }, [showPasswordDialog]);
 
-  // Geliştirilmiş klavye kısayolu dinleyicisi
+  // Klavye kısayolu dinleyicisi
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ctrl + Shift + L kombinasyonu - Daha güvenilir kontrol
+      // Ctrl + Shift + L kombinasyonu
       if (event.ctrlKey && event.shiftKey && (event.key === 'L' || event.key === 'l' || event.code === 'KeyL')) {
         event.preventDefault();
         event.stopPropagation();
@@ -138,48 +132,10 @@ export const useDeveloperTools = () => {
       }
     };
 
-    const handleKeyUp = (event: KeyboardEvent) => {
-      // Alternatif kontrol - keyup event'i ile
-      if (event.ctrlKey && event.shiftKey && (event.key === 'L' || event.key === 'l' || event.code === 'KeyL')) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-
-    // Hem document hem de window'a event listener ekle
     document.addEventListener('keydown', handleKeyDown, { capture: true });
-    document.addEventListener('keyup', handleKeyUp, { capture: true });
     window.addEventListener('keydown', handleKeyDown, { capture: true });
-    window.addEventListener('keyup', handleKeyUp, { capture: true });
 
-    // Debug için klavye event'lerini logla
-    const debugKeyHandler = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey) {
-        console.log('🎹 Klavye kombinasyonu:', {
-          key: event.key,
-          code: event.code,
-          ctrlKey: event.ctrlKey,
-          shiftKey: event.shiftKey,
-          type: event.type
-        });
-      }
-    };
-
-    document.addEventListener('keydown', debugKeyHandler);
-
-    // Cleanup
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, { capture: true });
-      document.removeEventListener('keyup', handleKeyUp, { capture: true });
-      window.removeEventListener('keydown', handleKeyDown, { capture: true });
-      window.removeEventListener('keyup', handleKeyUp, { capture: true });
-      document.removeEventListener('keydown', debugKeyHandler);
-    };
-  }, [handleDeveloperToolsAccess]);
-
-  // Alternatif erişim yöntemi - Console komutu
-  useEffect(() => {
-    // Global fonksiyon olarak tanımla
+    // Console komutları
     (window as any).devTools = handleDeveloperToolsAccess;
     (window as any).clearPublishStatus = clearAllPublishStatus;
     
@@ -189,6 +145,8 @@ export const useDeveloperTools = () => {
     console.log('🧹 Direkt Temizleme: clearPublishStatus()');
 
     return () => {
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
       delete (window as any).devTools;
       delete (window as any).clearPublishStatus;
     };

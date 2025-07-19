@@ -7,7 +7,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-  base: './', // Electron için relative path
+  base: '/', // Web uygulaması için absolute path
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
