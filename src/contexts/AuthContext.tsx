@@ -278,40 +278,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
       return { success: true, message: 'Kullanıcı başarıyla güncellendi' };
     } catch (error) {
-      }, 5000); // 5 saniyeye düşürüldü
+      console.error('❌ [AUTH] Kullanıcı güncelleme hatası:', error);
+      console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
+      return { success: false, message: 'Kullanıcı güncellenirken hata oluştu' };
     }
+  }, [currentUser?.role, loadUsers, storage]);
 
-    return () => {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-    };
-  }, [isLoading]);
+  // Tüm kullanıcıları getir
+  const getAllUsers = useCallback(async (): Promise<User[]> => {
+    if (currentUser?.role !== 'admin') {
+      return [];
+    }
+    return await loadUsers();
+  }, [currentUser?.role, loadUsers]);
 
-  // Computed values
-  const isAdmin = currentUser?.role === 'admin';
-  const isPersonel = currentUser?.role === 'personel';
+  // İlk yükleme ve oturum kontrolü
+  useEffect(() => {
+    if (!initRef.current && storage.isReady) {
+      initRef.current = true;
+      checkSession();
+    }
+  }, [storage.isReady, checkSession]);
 
-  const value: AuthContextType = {
-    currentUser,
-    isLoading,
-    login,
-    logout,
-    addUser,
-    updateUser,
-    getAllUsers,
-    isAdmin,
-    isPersonel
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-        }
-      }, 10000);
+  // Loading timeout
+  useEffect(() => {
+    if (isLoading) {
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.warn('⚠️ [AUTH] Loading timeout, forcing ready state');
+        setIsLoading(false);
+      }, 5000); // 5 saniyeye düşürüldü
     }
 
     return () => {
