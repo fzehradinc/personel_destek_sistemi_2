@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Suspense, lazy } from 'react';
+import { lazy } from 'react';
 import ContentAssignmentModal from './components/ContentAssignmentModal';
 import DeveloperToolsModal from './components/DeveloperToolsModal';
 import ScrollToTop from './components/ScrollToTop';
