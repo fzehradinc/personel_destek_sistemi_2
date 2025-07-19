@@ -119,66 +119,55 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Oturum kontrolü - Tek sefer çalışacak şekilde optimize edildi
   const checkSession = useCallback(async () => {
     if (sessionCheckRef.current) {
-      console.log('⏭️ [AUTH] Oturum kontrolü zaten yapılıyor, atlanıyor');
-      return;
-    }
-    
-    // Storage hazır değilse kısa süre bekle
-    if (!storage.isReady) {
-      console.log('⏳ [AUTH] Storage henüz hazır değil, 500ms bekleniyor...');
-      setTimeout(() => {
-        if (!sessionCheckRef.current) {
-          checkSession();
-        }
-      }, 500);
+      console.log('⏭️ [AUTH] Session check already in progress, skipping');
       return;
     }
     
     sessionCheckRef.current = true;
-    console.time('⏱️ [WEB-AUTH] checkSession süresi');
-    console.log('🔍 [AUTH] Oturum kontrolü başlatılıyor...');
+    console.time('⏱️ [AUTH] Session check duration');
+    console.log('🔍 [AUTH] Starting session check...');
     
     try {
+      // Always try to check session, even if storage not ready
       const session = await storage.readJsonFile('user_session.json') as UserSession | null;
-      console.log('📄 [AUTH] Session dosyası okundu:', session ? 'Var' : 'Yok');
+      console.log('📄 [AUTH] Session file read:', session ? 'Found' : 'Not found');
       
       if (session && session.user && new Date(session.expiresAt) > new Date()) {
         // Oturum geçerli
         setCurrentUser(session.user);
-        console.log('✅ [AUTH] Geçerli oturum bulundu:', session.user.username);
+        console.log('✅ [AUTH] Valid session found:', session.user.username);
       } else {
         // Oturum süresi dolmuş veya yok
         if (session) {
           await storage.writeJsonFile('user_session.json', null);
-          console.log('🗑️ [AUTH] Süresi dolmuş oturum temizlendi');
+          console.log('🗑️ [AUTH] Expired session cleaned');
         }
-          console.log('ℹ️ [AUTH] Hiç oturum bulunamadı - giriş gerekli');
+        console.log('ℹ️ [AUTH] No session found - login required');
         setCurrentUser(null);
       }
     } catch (error) {
-      console.error('❌ [AUTH] Oturum kontrolü hatası:', error);
+      console.error('❌ [AUTH] Session check error:', error);
       setCurrentUser(null);
     } finally {
       setIsLoading(false);
-      console.log('✅ [AUTH] Loading durumu false yapıldı');
-      console.timeEnd('⏱️ [WEB-AUTH] checkSession süresi');
+      sessionCheckRef.current = false; // Reset for future checks
+      console.log('✅ [AUTH] Loading set to false');
+      console.timeEnd('⏱️ [AUTH] Session check duration');
     }
-  }, [storage.isReady, storage]);
+  }, [storage]); // Remove storage.isReady dependency
 
   // Giriş yapma - Optimize edilmiş
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
-    if (!storage.isReady) {
-      return { success: false, message: 'Sistem henüz hazır değil' };
-    }
-
-    console.time('⏱️ [AUTH] Giriş işlemi');
+    console.time('⏱️ [AUTH] Login process');
+    console.log('🔐 [AUTH] Starting login for:', username);
     
     try {
       const users = await loadUsers();
       const user = users.find(u => u.username === username && u.password === password && u.isActive);
 
       if (!user) {
-        console.timeEnd('⏱️ [AUTH] Giriş işlemi');
+        console.log('❌ [AUTH] Invalid credentials for:', username);
+        console.timeEnd('⏱️ [AUTH] Login process');
         return { success: false, message: 'Kullanıcı adı veya şifre hatalı' };
       }
 
@@ -204,36 +193,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       ]);
 
       if (sessionResult.status === 'rejected') {
-        throw new Error('Oturum kaydedilemedi');
+        console.warn('⚠️ [AUTH] Session save failed, but continuing...');
       }
 
       setCurrentUser(session.user);
-      console.log('✅ [AUTH] Giriş başarılı:', user.username);
-      console.timeEnd('⏱️ [AUTH] Giriş işlemi');
+      console.log('✅ [AUTH] Login successful:', user.username);
+      console.timeEnd('⏱️ [AUTH] Login process');
       
       return { success: true, message: 'Giriş başarılı' };
     } catch (error) {
-      console.error('❌ [AUTH] Giriş hatası:', error);
-      console.timeEnd('⏱️ [AUTH] Giriş işlemi');
+      console.error('❌ [AUTH] Login error:', error);
+      console.timeEnd('⏱️ [AUTH] Login process');
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
-  }, [storage.isReady, storage, loadUsers]);
+  }, [storage, loadUsers]); // Remove storage.isReady dependency
 
   // Çıkış yapma
   const logout = useCallback(async () => {
-    console.time('⏱️ [AUTH] Çıkış işlemi');
+    console.time('⏱️ [AUTH] Logout process');
     
     try {
       await storage.writeJsonFile('user_session.json', null);
       setCurrentUser(null);
       sessionCheckRef.current = false; // Reset session check
-      console.log('✅ [AUTH] Çıkış yapıldı');
+      console.log('✅ [AUTH] Logout successful');
     } catch (error) {
-      console.error('❌ [AUTH] Çıkış hatası:', error);
+      console.error('❌ [AUTH] Logout error:', error);
       // Hata olsa bile state'i temizle
       setCurrentUser(null);
     } finally {
-      console.timeEnd('⏱️ [AUTH] Çıkış işlemi');
+      console.timeEnd('⏱️ [AUTH] Logout process');
     }
   }, [storage]);
 
@@ -310,26 +299,55 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // İlk yükleme ve oturum kontrolü
   useEffect(() => {
-    if (!initRef.current) {
+    let isMounted = true;
+    
+    const initAuth = async () => {
+      if (initRef.current) {
+        console.log('⏭️ [AUTH] Already initialized');
+        return;
+      }
+      
       initRef.current = true;
-      console.log('🚀 [AUTH] İlk oturum kontrolü başlatılıyor...');
-      checkSession();
-    } else {
-      console.log('⏭️ [AUTH] Auth zaten başlatılmış');
-    }
-  }, [checkSession]);
+      console.log('🚀 [AUTH] Starting initial session check...');
+      
+      // Wait a bit for storage to initialize, but don't wait forever
+      let attempts = 0;
+      const maxAttempts = 10; // 5 seconds max
+      
+      while (!storage.isReady && attempts < maxAttempts && isMounted) {
+        console.log(`⏳ [AUTH] Waiting for storage... attempt ${attempts + 1}/${maxAttempts}`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+      
+      if (isMounted) {
+        if (storage.isReady) {
+          console.log('✅ [AUTH] Storage ready, checking session');
+        } else {
+          console.warn('⚠️ [AUTH] Storage not ready after timeout, proceeding anyway');
+        }
+        await checkSession();
+      }
+    };
+    
+    initAuth();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // No dependencies - run once only
 
   // Loading timeout
   useEffect(() => {
     if (isLoading) {
-      console.log('⏰ [AUTH] Loading timeout başlatıldı (3 saniye)');
+      console.log('⏰ [AUTH] Loading timeout started (3 seconds)');
       loadingTimeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ [AUTH] Loading timeout - zorla ready state');
+        console.warn('⚠️ [AUTH] Loading timeout - forcing ready state');
         setIsLoading(false);
         setCurrentUser(null); // Giriş sayfasını göster
-      }, 3000); // 3 saniyeye düşürüldü
+      }, 3000);
     } else {
-      console.log('✅ [AUTH] Loading tamamlandı, timeout temizlendi');
+      console.log('✅ [AUTH] Loading completed, timeout cleared');
     }
 
     return () => {
