@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useState, useMemo, useCallback, Suspense } from 'react';
+import React, { useEffect, useMemo, useCallback, Suspense, startTransition } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { lazy } from 'react';
@@ -10,7 +10,7 @@ import { Building2, Users, BookOpen, Workflow, FileText, HelpCircle, ChevronLeft
 import { useTransferButtons } from './hooks/useTransferButtons';
 import { useDeveloperTools } from './hooks/useDeveloperTools';
 
-// Performance: Lazy loading ile bileşenleri yükle - route bazlı code splitting
+// Performance: Lazy loading ile code splitting - prefetch ile optimize
 const LoginPage = lazy(() => import('./components/LoginPage'));
 const Homepage = lazy(() => import('./components/Homepage'));
 const OrgTree = lazy(() => import('./components/OrgTree'));
@@ -21,19 +21,35 @@ const FAQ = lazy(() => import('./components/FAQ'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const PersonelDashboard = lazy(() => import('./components/PersonelDashboard'));
 
-// Performance: Optimize edilmiş loading bileşeni
-const LoadingSpinner = () => (
+// Performance: Optimize edilmiş loading bileşeni - memoize
+const LoadingSpinner = React.memo(() => (
   <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
       <div className="text-gray-600">Modül yükleniyor...</div>
     </div>
   </div>
-);
+));
+LoadingSpinner.displayName = 'LoadingSpinner';
 
-// Performance: Ana uygulama bileşeni - memoize edilmiş
+// Performance: Initial loading - farklı spinner
+const InitialLoadingSpinner = React.memo(() => (
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <div className="text-gray-600 text-sm">Sistem başlatılıyor...</div>
+      <div className="text-xs text-gray-500 mt-2">
+        Web tabanlı hızlı giriş sistemi
+      </div>
+    </div>
+  </div>
+));
+InitialLoadingSpinner.displayName = 'InitialLoadingSpinner';
+
+// Performance: Ana uygulama bileşeni - Re-render optimizasyonu
 const AppContent = React.memo(() => {
-  console.time('⏱️ [APP] Component render');
+  const renderStartTime = performance.now();
+  console.log('🚀 [APP] Component render başlatıldı');
   
   const { currentUser, isLoading, logout, isAdmin, isPersonel } = useAuth();
   const [activeTab, setActiveTab] = useState('homepage');
@@ -50,7 +66,7 @@ const AppContent = React.memo(() => {
     contentTitle: ''
   });
 
-  // Performance: Transfer buttons hook - memoize edilmiş
+  // Performance: Transfer buttons hook - deps optimize
   const { 
     showTransferButtons, 
     loading, 
@@ -59,7 +75,7 @@ const AppContent = React.memo(() => {
     hideTransferButtons 
   } = useTransferButtons();
 
-  // Performance: Developer tools hook - memoize edilmiş
+  // Performance: Developer tools hook - deps optimize
   const {
     showPasswordModal,
     showConfirmModal,
@@ -68,20 +84,22 @@ const AppContent = React.memo(() => {
     handleCancel
   } = useDeveloperTools();
 
-  // Performance: Tab değiştirme fonksiyonunu optimize et
+  // Performance: Tab değiştirme - startTransition ile optimize
   const handleTabChange = useCallback((tabId: string) => {
     if (tabId !== activeTab) {
       console.log(`🔄 [APP] Tab değişimi: ${activeTab} → ${tabId}`);
-      setActiveTab(tabId);
+      startTransition(() => {
+        setActiveTab(tabId);
+      });
     }
   }, [activeTab]);
 
-  // Performance: Sidebar toggle fonksiyonunu optimize et
+  // Performance: Sidebar toggle - basit callback
   const handleSidebarToggle = useCallback(() => {
     setSidebarCollapsed(prev => !prev);
   }, []);
 
-  // Performance: Assignment modal açma fonksiyonunu optimize et
+  // Performance: Assignment modal - optimize
   const openAssignmentModal = useCallback((contentId: string, contentType: 'training' | 'process' | 'procedure' | 'faq', contentTitle: string) => {
     setShowAssignmentModal({
       isOpen: true,
@@ -91,13 +109,12 @@ const AppContent = React.memo(() => {
     });
   }, []);
 
-  // Performance: Assignment modal kapatma fonksiyonunu optimize et
   const closeAssignmentModal = useCallback(() => {
     setShowAssignmentModal(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  // Performance: Tabs listesini memoize et
-  const tabs = useMemo(() => [
+  // Performance: Static tabs - değişmeyecek veri
+  const baseTabs = useMemo(() => [
     { 
       id: 'homepage', 
       label: 'Ana Sayfa', 
@@ -142,12 +159,12 @@ const AppContent = React.memo(() => {
     }
   ], []);
 
-  // Performance: Admin için ek sekmeler - memoize edilmiş
-  const adminTabs = useMemo(() => {
-    if (!isAdmin) return tabs;
+  // Performance: Admin tabs - sadece admin durumu değişirse recalculate
+  const availableTabs = useMemo(() => {
+    if (!isAdmin) return baseTabs;
     
     return [
-      ...tabs,
+      ...baseTabs,
       {
         id: 'users',
         label: 'Kullanıcı Yönetimi',
@@ -156,46 +173,41 @@ const AppContent = React.memo(() => {
         description: 'Kullanıcı hesapları ve yetkilendirme'
       }
     ];
-  }, [isAdmin, tabs]);
+  }, [isAdmin, baseTabs]);
 
-  // Performance: Aktif tab verisi - memoize edilmiş
+  // Performance: Active tab - memoize
   const activeTabData = useMemo(() => {
-    return adminTabs.find(tab => tab.id === activeTab);
-  }, [adminTabs, activeTab]);
+    return availableTabs.find(tab => tab.id === activeTab);
+  }, [availableTabs, activeTab]);
 
-  // Performance: Render edilen tab içeriğini memoize et
+  // Performance: Tab content rendering - Switch yerine object mapping
+  const tabComponents = useMemo(() => ({
+    homepage: <Homepage />,
+    orgchart: <OrgTree />,
+    training: <TrainingMaterials onAssignContent={openAssignmentModal} />,
+    process: <ProcessFlow onAssignContent={openAssignmentModal} />,
+    procedures: <ProceduresInstructions onAssignContent={openAssignmentModal} />,
+    faq: <FAQ onAssignContent={openAssignmentModal} />,
+    users: isAdmin ? <UserManagement /> : <Homepage />
+  }), [isAdmin, openAssignmentModal]);
+
+  // Performance: Render tab content - Suspense içinde
   const renderTabContent = useMemo(() => {
-    console.time(`⏱️ [APP] ${activeTab} render`);
+    const componentStartTime = performance.now();
+    console.log(`🔄 [APP] ${activeTab} component render başladı`);
+    
     return (
       <Suspense fallback={<LoadingSpinner />}>
-        {(() => {
-          switch (activeTab) {
-            case 'homepage':
-              return <Homepage />;
-            case 'orgchart':
-              return <OrgTree />;
-            case 'training':
-              return <TrainingMaterials onAssignContent={openAssignmentModal} />;
-            case 'process':
-              return <ProcessFlow onAssignContent={openAssignmentModal} />;
-            case 'procedures':
-              return <ProceduresInstructions onAssignContent={openAssignmentModal} />;
-            case 'faq':
-              return <FAQ onAssignContent={openAssignmentModal} />;
-            case 'users':
-              return isAdmin ? <UserManagement /> : null;
-            default:
-              return <Homepage />;
-          }
-          console.timeEnd(`⏱️ [APP] ${activeTab} render`);
-        })()}
+        {tabComponents[activeTab as keyof typeof tabComponents] || tabComponents.homepage}
       </Suspense>
     );
-  }, [activeTab, isAdmin, openAssignmentModal]);
+  }, [activeTab, tabComponents]);
 
-  // Performance: Navigation items'ı memoize et
+  // Performance: Navigation items - complex rendering'i memoize et
   const navigationItems = useMemo(() => {
-    return adminTabs.map((tab) => {
+    console.log(`🔄 [APP] Navigation items render edildi (${availableTabs.length} tab)`);
+    
+    return availableTabs.map((tab) => {
       const IconComponent = tab.icon;
       const isActive = activeTab === tab.id;
       
@@ -222,12 +234,10 @@ const AppContent = React.memo(() => {
             <span className="text-sm font-medium truncate">{tab.label}</span>
           )}
           
-          {/* Active indicator */}
           {isActive && (
             <div className="absolute right-2 w-2 h-2 bg-white rounded-full shadow-sm"></div>
           )}
           
-          {/* Tooltip for collapsed state */}
           {sidebarCollapsed && (
             <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
               {tab.label}
@@ -237,46 +247,35 @@ const AppContent = React.memo(() => {
         </button>
       );
     });
-  }, [adminTabs, activeTab, sidebarCollapsed, handleTabChange]);
+  }, [availableTabs, activeTab, sidebarCollapsed, handleTabChange]);
 
-  // Performance: Giriş kontrolü - optimize edilmiş
+  // Performance: Loading durumları - early return
   if (isLoading) {
-    console.log('🔄 [APP] Kullanıcı oturumu kontrol ediliyor...');
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-gray-600 text-sm">Oturum kontrol ediliyor...</div>
-          <div className="text-xs text-gray-500 mt-2">
-            Web tabanlı hızlı giriş sistemi
-          </div>
-        </div>
-      </div>
-    );
+    console.log('⏳ [APP] Auth sistemi yükleniyor...');
+    return <InitialLoadingSpinner />;
   }
 
-  // Performance: Giriş sayfası - lazy loaded
   if (!currentUser) {
     console.log('👤 [APP] Kullanıcı girişi gerekli');
     return (
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<InitialLoadingSpinner />}>
         <LoginPage />
       </Suspense>
     );
   }
 
-  // Performance: Personel için özel dashboard - lazy loaded
   if (isPersonel) {
     console.log('👤 [APP] Personel dashboard yükleniyor');
     return (
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<InitialLoadingSpinner />}>
         <PersonelDashboard />
       </Suspense>
     );
   }
 
-  console.log('👨‍💼 [APP] Admin panel yükleniyor');
-  console.timeEnd('⏱️ [APP] Component render');
+  // Performance: Render tamamlandı
+  const renderEndTime = performance.now();
+  console.log(`✅ [APP] Component render tamamlandı (${(renderEndTime - renderStartTime).toFixed(2)}ms)`);
 
   return (
     <ScrollToTop activeTab={activeTab}>
@@ -351,261 +350,4 @@ const AppContent = React.memo(() => {
               </div>
             )}
 
-            {/* Çıkış Butonu */}
-            <button
-              onClick={logout}
-              className={`
-                w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 
-                flex items-center gap-2 text-xs shadow-sm hover:shadow-md mb-4
-                ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
-              `}
-              title={sidebarCollapsed ? 'Çıkış Yap' : 'Güvenli çıkış yap'}
-            >
-              <LogOut className="w-3 h-3" />
-              {!sidebarCollapsed && <span>Çıkış Yap</span>}
-            </button>
-
-            {/* Sistem Durumu */}
-            <div className="flex items-center gap-2 text-purple-200 text-xs mb-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              {!sidebarCollapsed && <span>Sistem Aktif</span>}
-            </div>
-            
-            {/* Versiyon */}
-            {!sidebarCollapsed && (
-              <div className="text-xs text-purple-300 mb-4">
-                Versiyon: 1.0.0
-              </div>
-            )}
-
-            {/* Veri Yönetimi Butonları */}
-            {showTransferButtons && isAdmin && (
-              <div className="space-y-2">
-                {!sidebarCollapsed && (
-                  <div className="text-xs text-purple-200 mb-2 flex items-center gap-1">
-                    <Package className="w-3 h-3" />
-                    <span>Veri Yönetimi</span>
-                  </div>
-                )}
-                
-                {/* Dışa Aktar */}
-                <button
-                  onClick={handleExport}
-                  disabled={loading}
-                  className={`
-                    w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed 
-                    text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 
-                    flex items-center gap-2 text-xs shadow-sm hover:shadow-md
-                    ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                  title={sidebarCollapsed ? 'Dışa Aktar' : 'Tüm verileri .zip dosyası olarak masaüstüne dışa aktar'}
-                >
-                  {loading ? (
-                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Download className="w-3 h-3" />
-                  )}
-                  {!sidebarCollapsed && <span>Dışa Aktar</span>}
-                </button>
-
-                {/* İçe Aktar */}
-                <button
-                  onClick={handleImport}
-                  disabled={loading}
-                  className={`
-                    w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-500 disabled:cursor-not-allowed 
-                    text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 
-                    flex items-center gap-2 text-xs shadow-sm hover:shadow-md
-                    ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                  title={sidebarCollapsed ? 'İçe Aktar' : 'Yedek .zip dosyasından verileri geri yükle'}
-                >
-                  {loading ? (
-                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Upload className="w-3 h-3" />
-                  )}
-                  {!sidebarCollapsed && <span>İçe Aktar</span>}
-                </button>
-
-                {/* Butonları Gizle */}
-                <button
-                  onClick={hideTransferButtons}
-                  disabled={loading}
-                  className={`
-                    w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-500 disabled:cursor-not-allowed 
-                    text-white px-3 py-2 rounded-lg font-medium transition-all duration-200 
-                    flex items-center gap-2 text-xs shadow-sm hover:shadow-md
-                    ${sidebarCollapsed ? 'justify-center' : 'justify-start'}
-                  `}
-                  title={sidebarCollapsed ? 'Gizle' : 'Bu butonları kalıcı olarak gizle (canlı sistem modu)'}
-                >
-                  <EyeOff className="w-3 h-3" />
-                  {!sidebarCollapsed && <span>Gizle</span>}
-                </button>
-
-                {/* Loading durumu bilgisi */}
-                {loading && !sidebarCollapsed && (
-                  <div className="text-center pt-1">
-                    <div className="text-xs text-purple-200 animate-pulse">
-                      İşlem devam ediyor...
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Collapsed state için tooltip */}
-            {sidebarCollapsed && showTransferButtons && isAdmin && (
-              <div className="mt-2 flex justify-center">
-                <div className="w-6 h-6 bg-white bg-opacity-10 rounded-full flex items-center justify-center">
-                  <Package className="w-3 h-3" />
-                </div>
-              </div>
-            )}
-
-            {/* Geliştirici Araçları Bilgisi - Sadece collapsed değilse göster */}
-            {!sidebarCollapsed && isAdmin && (
-              <div className="mt-4 pt-3 border-t border-purple-500 border-opacity-30">
-                <div className="text-xs text-purple-300 text-center">
-                  🔧 Geliştirici: Ctrl + Shift + L
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Ana İçerik Alanı */}
-        <div className={`
-          flex-1 transition-all duration-300 ease-in-out
-          ${sidebarCollapsed ? 'ml-16' : 'ml-64'}
-        `}>
-          {/* Üst Header - Sadece Ana Sayfa değilse göster */}
-          {activeTab !== 'homepage' && (
-            <div className="bg-white shadow-lg border-b border-gray-100">
-              {/* Top Bar */}
-              <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
-                <div className="px-6 lg:px-8">
-                  <div className="flex items-center justify-between h-12">
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                        <span className="font-medium">Sistem Aktif</span>
-                      </div>
-                      <div className="hidden sm:block text-blue-100">•</div>
-                      <div className="hidden sm:flex items-center gap-1">
-                        <span>{isAdmin ? '👨‍💼 Admin Panel' : '👤 Personel Panel'}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="hidden md:flex items-center gap-2">
-                        <span className="text-blue-100">Son Güncelleme:</span>
-                        <span className="font-medium">{new Date().toLocaleDateString('tr-TR')}</span>
-                      </div>
-                      <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xs font-medium">
-                        {currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Tab Info Bar */}
-              {activeTabData && (
-                <div className={`bg-gradient-to-r ${activeTabData.color} text-white`}>
-                  <div className="px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-14">
-                      <div className="flex items-center gap-3">
-                        <activeTabData.icon className="w-5 h-5" />
-                        <div>
-                          <h2 className="font-semibold">{activeTabData.label}</h2>
-                          <p className="text-xs text-white text-opacity-80">{activeTabData.description}</p>
-                        </div>
-                      </div>
-                      <div className="hidden sm:flex items-center gap-2 text-sm text-white text-opacity-80">
-                        <span>Modül Aktif</span>
-                        <div className="w-2 h-2 bg-white bg-opacity-60 rounded-full animate-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab Content */}
-          <div className="transition-all duration-500 ease-in-out">
-            {renderTabContent}
-          </div>
-
-          {/* Footer - Sadece Ana Sayfa değilse göster */}
-          {activeTab !== 'homepage' && (
-            <footer className="bg-white border-t border-gray-200 mt-12">
-              <div className="px-6 lg:px-8 py-8">
-                <div className="flex flex-col md:flex-row items-center justify-between">
-                  <div className="flex items-center gap-3 mb-4 md:mb-0">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">Personel Destek Sistemi</div>
-                      <div className="text-sm text-gray-500">
-                        {isAdmin ? 'Yönetim Platformu' : 'Personel Platformu'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>Sistem Durumu: Aktif</span>
-                    </div>
-                    <div>© 2024 {currentUser.department || 'Entegrasyon Ekibi'}</div>
-                  </div>
-                </div>
-              </div>
-            </footer>
-          )}
-        </div>
-
-        {/* İçerik Atama Modal */}
-        <ContentAssignmentModal
-          isOpen={showAssignmentModal.isOpen}
-          onClose={closeAssignmentModal}
-          contentId={showAssignmentModal.contentId}
-          contentType={showAssignmentModal.contentType}
-          contentTitle={showAssignmentModal.contentTitle}
-        />
-
-        {/* Developer Tools Modal */}
-        <DeveloperToolsModal
-          showPasswordModal={showPasswordModal}
-          showConfirmModal={showConfirmModal}
-          onPasswordConfirm={handlePasswordConfirm}
-          onConfirm={handleConfirm}
-          onCancel={handleCancel}
-        />
-      </div>
-    </ScrollToTop>
-  );
-});
-
-AppContent.displayName = 'AppContent';
-
-// Performance: Ana App bileşeni - AuthProvider ile sarılmış
-function App() {
-  console.time('⏱️ [APP] App başlatma');
-  
-  useEffect(() => {
-    console.timeEnd('⏱️ [APP] App başlatma');
-  }, []);
-
-  return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
-  );
-}
-
-export default App;
+            {/*
