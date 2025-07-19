@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ContentAssignment, UserProgress } from '../types/user';
-import { useElectronStorage } from './useElectronStorage';
+import { useWebStorage } from './useWebStorage';
 import { useAuth } from './useAuth';
 
 export const useContentAssignment = () => {
   const [assignments, setAssignments] = useState<ContentAssignment[]>([]);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
   const { currentUser } = useAuth();
 
   // Atamaları yükle

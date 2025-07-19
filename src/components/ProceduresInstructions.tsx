@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, FileText, Eye, Download, Search, Trash2, Edit, Calendar, Tag, Rocket, RotateCcw, CheckCircle } from 'lucide-react';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 interface ProcedureInstruction {
 id: string;
@@ -33,7 +33,7 @@ file: null as File | null
 });
 
 // Electron Storage Hook
-const storage = useElectronStorage();
+const storage = useWebStorage();
 
 // Verileri yükle - SENKRON HALE GETİRİLDİ
 useEffect(() => {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserSession } from '../types/user';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -31,11 +31,11 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // Performance: Varsayılan kullanıcıları oluştur - sadece bir kez
   const createDefaultUsers = async (): Promise<User[]> => {
-    console.time('⏱️ [AUTH] Varsayılan kullanıcılar oluşturma');
+    console.time('⏱️ [WEB-AUTH] Varsayılan kullanıcılar oluşturma');
     
     const defaultUsers: User[] = [
       {
@@ -74,14 +74,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     ];
 
     await storage.writeJsonFile('users.json', defaultUsers);
-    console.timeEnd('⏱️ [AUTH] Varsayılan kullanıcılar oluşturma');
-    console.log('✅ [AUTH] Varsayılan kullanıcılar oluşturuldu');
+    console.timeEnd('⏱️ [WEB-AUTH] Varsayılan kullanıcılar oluşturma');
+    console.log('✅ [WEB-AUTH] Varsayılan kullanıcılar oluşturuldu');
     return defaultUsers;
   };
 
   // Performance: Kullanıcıları yükle - cache ile optimize edilmiş
   const loadUsers = async (): Promise<User[]> => {
-    console.time('⏱️ [AUTH] Kullanıcılar yükleme');
+    console.time('⏱️ [WEB-AUTH] Kullanıcılar yükleme');
     
     try {
       let users = await storage.readJsonFile('users.json');
@@ -89,18 +89,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         users = await createDefaultUsers();
       }
       
-      console.timeEnd('⏱️ [AUTH] Kullanıcılar yükleme');
+      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcılar yükleme');
       return users;
     } catch (error) {
-      console.error('❌ [AUTH] Kullanıcılar yüklenirken hata:', error);
-      console.timeEnd('⏱️ [AUTH] Kullanıcılar yükleme');
+      console.error('❌ [WEB-AUTH] Kullanıcılar yüklenirken hata:', error);
+      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcılar yükleme');
       return await createDefaultUsers();
     }
   };
 
   // Performance: Oturum kontrolü - optimize edilmiş
   const checkSession = async () => {
-    console.time('⏱️ [AUTH] Oturum kontrolü');
+    console.time('⏱️ [WEB-AUTH] checkSession süresi');
     
     try {
       const session = await storage.readJsonFile('user_session.json') as UserSession | null;
@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (session && new Date(session.expiresAt) > new Date()) {
         // Oturum geçerli
         setCurrentUser(session.user);
-        console.log('✅ [AUTH] Geçerli oturum bulundu:', session.user.username);
+        console.log('✅ [WEB-AUTH] Geçerli oturum bulundu:', session.user.username);
       } else {
         // Oturum süresi dolmuş veya yok
         if (session) {
@@ -117,24 +117,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setCurrentUser(null);
       }
     } catch (error) {
-      console.error('❌ [AUTH] Oturum kontrolü hatası:', error);
+      console.error('❌ [WEB-AUTH] Oturum kontrolü hatası:', error);
       setCurrentUser(null);
     } finally {
       setIsLoading(false);
-      console.timeEnd('⏱️ [AUTH] Oturum kontrolü');
+      console.timeEnd('⏱️ [WEB-AUTH] checkSession süresi');
     }
   };
 
   // Performance: Giriş yapma - optimize edilmiş
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
-    console.time('⏱️ [AUTH] Giriş işlemi');
+    console.time('⏱️ [WEB-AUTH] Giriş işlemi');
     
     try {
       const users = await loadUsers();
       const user = users.find(u => u.username === username && u.password === password && u.isActive);
 
       if (!user) {
-        console.timeEnd('⏱️ [AUTH] Giriş işlemi');
+        console.timeEnd('⏱️ [WEB-AUTH] Giriş işlemi');
         return { success: false, message: 'Kullanıcı adı veya şifre hatalı' };
       }
 
@@ -157,29 +157,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await storage.writeJsonFile('users.json', updatedUsers);
 
       setCurrentUser(session.user);
-      console.log('✅ [AUTH] Giriş başarılı:', user.username);
-      console.timeEnd('⏱️ [AUTH] Giriş işlemi');
+      console.log('✅ [WEB-AUTH] Giriş başarılı:', user.username);
+      console.timeEnd('⏱️ [WEB-AUTH] Giriş işlemi');
       
       return { success: true, message: 'Giriş başarılı' };
     } catch (error) {
-      console.error('❌ [AUTH] Giriş hatası:', error);
-      console.timeEnd('⏱️ [AUTH] Giriş işlemi');
+      console.error('❌ [WEB-AUTH] Giriş hatası:', error);
+      console.timeEnd('⏱️ [WEB-AUTH] Giriş işlemi');
       return { success: false, message: 'Giriş sırasında hata oluştu' };
     }
   };
 
   // Performance: Çıkış yapma - optimize edilmiş
   const logout = async () => {
-    console.time('⏱️ [AUTH] Çıkış işlemi');
+    console.time('⏱️ [WEB-AUTH] Çıkış işlemi');
     
     try {
       await storage.writeJsonFile('user_session.json', null);
       setCurrentUser(null);
-      console.log('✅ [AUTH] Çıkış yapıldı');
+      console.log('✅ [WEB-AUTH] Çıkış yapıldı');
     } catch (error) {
-      console.error('❌ [AUTH] Çıkış hatası:', error);
+      console.error('❌ [WEB-AUTH] Çıkış hatası:', error);
     } finally {
-      console.timeEnd('⏱️ [AUTH] Çıkış işlemi');
+      console.timeEnd('⏱️ [WEB-AUTH] Çıkış işlemi');
     }
   };
 
@@ -189,14 +189,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: false, message: 'Yetkiniz yok' };
     }
 
-    console.time('⏱️ [AUTH] Kullanıcı ekleme');
+    console.time('⏱️ [WEB-AUTH] Kullanıcı ekleme');
 
     try {
       const users = await loadUsers();
       
       // Kullanıcı adı kontrolü
       if (users.some(u => u.username === userData.username)) {
-        console.timeEnd('⏱️ [AUTH] Kullanıcı ekleme');
+        console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı ekleme');
         return { success: false, message: 'Bu kullanıcı adı zaten kullanılıyor' };
       }
 
@@ -209,11 +209,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const updatedUsers = [...users, newUser];
       await storage.writeJsonFile('users.json', updatedUsers);
       
-      console.timeEnd('⏱️ [AUTH] Kullanıcı ekleme');
+      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı ekleme');
       return { success: true, message: 'Kullanıcı başarıyla eklendi' };
     } catch (error) {
-      console.error('❌ [AUTH] Kullanıcı ekleme hatası:', error);
-      console.timeEnd('⏱️ [AUTH] Kullanıcı ekleme');
+      console.error('❌ [WEB-AUTH] Kullanıcı ekleme hatası:', error);
+      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı ekleme');
       return { success: false, message: 'Kullanıcı eklenirken hata oluştu' };
     }
   };
@@ -224,25 +224,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: false, message: 'Yetkiniz yok' };
     }
 
-    console.time('⏱️ [AUTH] Kullanıcı güncelleme');
+    console.time('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
 
     try {
       const users = await loadUsers();
       const userIndex = users.findIndex(u => u.id === userId);
       
       if (userIndex === -1) {
-        console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
+        console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
         return { success: false, message: 'Kullanıcı bulunamadı' };
       }
 
       users[userIndex] = { ...users[userIndex], ...updates };
       await storage.writeJsonFile('users.json', users);
       
-      console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
+      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
       return { success: true, message: 'Kullanıcı başarıyla güncellendi' };
     } catch (error) {
-      console.error('❌ [AUTH] Kullanıcı güncelleme hatası:', error);
-      console.timeEnd('⏱️ [AUTH] Kullanıcı güncelleme');
+      console.error('❌ [WEB-AUTH] Kullanıcı güncelleme hatası:', error);
+      console.timeEnd('⏱️ [WEB-AUTH] Kullanıcı güncelleme');
       return { success: false, message: 'Kullanıcı güncellenirken hata oluştu' };
     }
   };
@@ -255,12 +255,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return await loadUsers();
   };
 
-  // Performance: İlk yükleme - sadece bir kez çalışır
+  // Performance: İlk yükleme - sadece bir kez çalışır, hızlı başlatma
   useEffect(() => {
-    if (storage.isReady) {
+    console.time('⏱️ [WEB-AUTH] AuthProvider başlatma');
+    
+    // Web storage anında hazır olduğu için hemen checkSession çalıştır
+    const initAuth = async () => {
+      if (storage.isReady) {
+        await checkSession();
+        console.timeEnd('⏱️ [WEB-AUTH] AuthProvider başlatma');
+      }
+    };
+    
+    initAuth();
+  }, [storage.isReady]);
+
+  // Loading durumu için timeout - 5 saniyeden uzun sürerse uyarı ver
+  useEffect(() => {
+    if (isLoading) {
+      const timeout = setTimeout(() => {
+        if (isLoading) {
+          console.warn('⚠️ [WEB-AUTH] Giriş kontrolü 5 saniyeden uzun sürüyor');
+          setIsLoading(false); // Zorla loading'i bitir
+        }
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading]);
+
+  // Hata durumu için fallback
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('❌ [WEB-AUTH] Global hata yakalandı:', error);
+      if (isLoading) {
+        setIsLoading(false);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, [isLoading]);
+
+  // Performans izleme
+  useEffect(() => {
+    if (!isLoading && currentUser) {
+      console.log('🚀 [WEB-AUTH] Kullanıcı oturumu aktif:', {
+        user: currentUser.username,
+        role: currentUser.role,
+        loginTime: new Date().toLocaleTimeString('tr-TR')
+      });
+    }
+  }, [isLoading, currentUser]);
+
+  // Storage hazır olma durumunu izle
+  useEffect(() => {
+    if (storage.isReady && isLoading) {
       checkSession();
     }
-  }, [storage.isReady]);
+  }, [storage.isReady, isLoading]);
 
   const value: AuthContextType = {
     currentUser,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { Rocket, RotateCcw, CheckCircle, Upload, Search, Trash2 } from 'lucide-react';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 interface FAQItem {
   id: string;
@@ -19,7 +19,7 @@ const FAQ = () => {
   const [isPublished, setIsPublished] = useState(false);
 
   // Electron Storage Hook
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // Verileri yükle (Electron veya localStorage'dan) - SENKRON HALE GETİRİLDİ
   useEffect(() => {

@@ -1,8 +1,8 @@
 import { useEffect, useCallback, useState } from 'react';
-import { useElectronStorage } from './useElectronStorage';
+import { useWebStorage } from './useWebStorage';
 
 export const useDeveloperTools = () => {
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 

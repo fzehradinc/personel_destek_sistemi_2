@@ -7,10 +7,25 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isInitializing, setIsInitializing] = useState(true);
   const { login } = useAuth();
+
+  // Performans: Sayfa yükleme süresini ölç
+  useEffect(() => {
+    console.time('⏱️ [LOGIN] Sayfa yükleme süresi');
+    
+    // Hızlı başlatma - gereksiz bekleme yok
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+      console.timeEnd('⏱️ [LOGIN] Sayfa yükleme süresi');
+    }, 100); // Minimal gecikme
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.time('⏱️ [LOGIN] Giriş işlem süresi');
     setLoading(true);
     setError('');
 
@@ -18,10 +33,25 @@ const LoginPage = () => {
     
     if (!result.success) {
       setError(result.message);
+    } else {
+      console.log('✅ [LOGIN] Giriş başarılı');
     }
     
+    console.timeEnd('⏱️ [LOGIN] Giriş işlem süresi');
     setLoading(false);
   };
+
+  // İlk yükleme durumu
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600 text-sm">Sistem başlatılıyor...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">

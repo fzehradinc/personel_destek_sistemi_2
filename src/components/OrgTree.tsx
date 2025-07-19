@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import Tree from 'react-d3-tree';
 import { Upload, Users, CheckCircle, RotateCcw, Eye, ArrowLeft, Building2, FileSpreadsheet, Rocket, ZoomIn, ZoomOut, Maximize2, RotateCcw as Reset, Move, MousePointer } from 'lucide-react';
-import { useElectronStorage } from '../hooks/useElectronStorage';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 interface PersonNode {
   name: string;
@@ -72,7 +72,7 @@ const OrgTree = () => {
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
 
   // Electron Storage Hook
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // Yayınlanmamış modül sayısını hesapla
   const unpublishedModulesCount = modules.filter(module => !module.isPublished).length;

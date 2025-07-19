@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useElectronStorage } from './useElectronStorage';
+import { useWebStorage } from './useWebStorage';
 
 export const useTransferButtons = () => {
   const [showTransferButtons, setShowTransferButtons] = useState(true);
   const [loading, setLoading] = useState(false);
-  const storage = useElectronStorage();
+  const storage = useWebStorage();
 
   // UI config'i yükle
   useEffect(() => {

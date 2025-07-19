@@ -241,11 +241,15 @@ const AppContent = React.memo(() => {
 
   // Performance: Giriş kontrolü - optimize edilmiş
   if (isLoading) {
+    console.log('🔄 [APP] Kullanıcı oturumu kontrol ediliyor...');
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-gray-600">Sistem yükleniyor...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-gray-600 text-sm">Oturum kontrol ediliyor...</div>
+          <div className="text-xs text-gray-500 mt-2">
+            Web tabanlı hızlı giriş sistemi
+          </div>
         </div>
       </div>
     );
@@ -253,6 +257,7 @@ const AppContent = React.memo(() => {
 
   // Performance: Giriş sayfası - lazy loaded
   if (!currentUser) {
+    console.log('👤 [APP] Kullanıcı girişi gerekli');
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <LoginPage />
@@ -262,6 +267,7 @@ const AppContent = React.memo(() => {
 
   // Performance: Personel için özel dashboard - lazy loaded
   if (isPersonel) {
+    console.log('👤 [APP] Personel dashboard yükleniyor');
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <PersonelDashboard />
@@ -269,6 +275,7 @@ const AppContent = React.memo(() => {
     );
   }
 
+  console.log('👨‍💼 [APP] Admin panel yükleniyor');
   console.timeEnd('⏱️ [APP] Component render');
 
   return (
