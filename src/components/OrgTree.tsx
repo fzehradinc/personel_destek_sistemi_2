@@ -87,20 +87,22 @@ const OrgTree = () => {
     const loadModuleStates = async () => {
       if (!storage.isReady) return;
 
-      // Sadece bir kez yükle
+      // Performance: Sadece bir kez yükle - gereksiz yüklemeyi önle
       if (modules.some(m => m.isLoaded || m.isPublished)) return;
 
       try {
+        console.time('⏱️ [ORGTREE] Modül durumları yükleme');
         console.log('📊 [ORGTREE] Modül durumları yükleniyor...');
         
-        // Yayın durumlarını yükle - SENKRON OKUMA
+        // Performance: Yayın durumlarını yükle - cache'den hızlı okuma
         const yayinData = await storage.readJsonFile('yayinda.json');
         console.log('📊 [ORGTREE] Yayın durumu verisi:', yayinData);
         
-        // Modül verilerini yükle
+        // Performance: Modül verilerini yükle - cache'den hızlı okuma
         const organizationData = await storage.readJsonFile('organization_modules.json');
         console.log('📊 [ORGTREE] Organizasyon verisi:', organizationData);
 
+        // Performance: Batch update ile tek seferde state güncelleme
         const updatedModules = modules.map(module => {
           // Yayın durumunu kontrol et
           const moduleKey = getModuleKey(module.id);
@@ -125,13 +127,14 @@ const OrgTree = () => {
 
         setModules(updatedModules);
         console.log('📊 [ORGTREE] Organizasyon modülleri yüklendi');
+        console.timeEnd('⏱️ [ORGTREE] Modül durumları yükleme');
       } catch (error) {
         console.error('❌ [ORGTREE] Modül durumları yüklenirken hata:', error);
       }
     };
 
     loadModuleStates();
-  }, [storage.isReady]);
+  }, [storage.isReady]); // Dependency array'i minimal tut
 
   // Modül ID'sini yayın durumu anahtarına çevir
   const getModuleKey = (moduleId: string): string => {
@@ -153,6 +156,8 @@ const OrgTree = () => {
 
   // Modül verilerini kaydet
   const saveModuleData = async (moduleId: string, data: any) => {
+    console.time(`⏱️ [ORGTREE] ${moduleId} kaydetme`);
+    
     try {
       // Mevcut organizasyon verilerini yükle
       const organizationData = await storage.readJsonFile('organization_modules.json') || {};
@@ -165,8 +170,10 @@ const OrgTree = () => {
       if (success) {
         console.log(`✅ [ORGTREE] Modül ${moduleId} kaydedildi`);
       }
+      console.timeEnd(`⏱️ [ORGTREE] ${moduleId} kaydetme`);
     } catch (error) {
       console.error(`❌ [ORGTREE] Modül ${moduleId} kaydedilirken hata:`, error);
+      console.timeEnd(`⏱️ [ORGTREE] ${moduleId} kaydetme`);
     }
   };
 
@@ -211,6 +218,7 @@ const OrgTree = () => {
 
   // Excel dosyasını parse eden fonksiyon
   const parseRoleBasedExcel = (jsonData: ExcelRow[]) => {
+    console.time('⏱️ [ORGTREE] Excel parsing');
     console.log('🔍 Excel dosyası analiz ediliyor (Birim Lideri desteği ile)...');
     console.log('📊 Ham veri:', jsonData);
 
@@ -316,6 +324,8 @@ const OrgTree = () => {
     console.log('🌳 Root node sayısı:', rootNodes.length);
     console.log('👑 Birim lideri var mı:', birimLideri ? 'Evet' : 'Hayır');
 
+    console.timeEnd('⏱️ [ORGTREE] Excel parsing');
+    
     let treeData;
     
     if (birimLideri) {
@@ -339,6 +349,8 @@ const OrgTree = () => {
 
   // Dosya yükleme fonksiyonu
   const handleFileUpload = (moduleId: string, file: File) => {
+    console.time(`⏱️ [ORGTREE] ${moduleId} dosya yükleme`);
+    
     setLoading(true);
     setUploadingModuleId(moduleId);
     
@@ -346,7 +358,7 @@ const OrgTree = () => {
 
     reader.onload = async (evt) => {
       try {
-        console.log(`📊 ${moduleId} modülü için Excel dosyası işleniyor...`);
+        console.log(`📊 [ORGTREE] ${moduleId} modülü için Excel dosyası işleniyor...`);
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -356,7 +368,7 @@ const OrgTree = () => {
           defval: ''
         }) as ExcelRow[];
         
-        console.log('📋 Excel verisi:', jsonData);
+        console.log('📋 [ORGTREE] Excel verisi:', jsonData);
 
         const filteredData = jsonData.filter(row => 
           row.PERSONEL && row.ROL && 
@@ -364,7 +376,7 @@ const OrgTree = () => {
           row.ROL.toString().trim() !== ''
         );
 
-        console.log('🧹 Filtrelenmiş veri:', filteredData);
+        console.log('🧹 [ORGTREE] Filtrelenmiş veri:', filteredData);
 
         if (filteredData.length === 0) {
           alert('Excel dosyasında geçerli veri bulunamadı. Lütfen format kontrolü yapın.');
@@ -398,12 +410,15 @@ const OrgTree = () => {
 
           console.log(`✅ ${moduleId} modülü başarıyla yüklendi:`, result.treeData);
           alert(`${moduleId} modülü başarıyla yüklendi! ${toplamKisi} kişi işlendi${result.stats?.totalBirimLideri ? ` (+ ${result.stats.totalBirimLideri} Birim Lideri)` : ''}.`);
+          console.timeEnd(`⏱️ [ORGTREE] ${moduleId} dosya yükleme`);
         } else {
           alert('Organizasyon şeması oluşturulamadı. Veri formatını kontrol edin.');
+          console.timeEnd(`⏱️ [ORGTREE] ${moduleId} dosya yükleme`);
         }
 
       } catch (error) {
         console.error(`${moduleId} modülü Excel dosyası işleme hatası:`, error);
+        console.timeEnd(`⏱️ [ORGTREE] ${moduleId} dosya yükleme`);
         alert(`Excel dosyası işlenirken hata oluştu: ${(error as Error).message}`);
       } finally {
         setLoading(false);
@@ -417,6 +432,8 @@ const OrgTree = () => {
   // Modül sıfırlama fonksiyonu - SENKRON HALE GETİRİLDİ
   const resetModule = async (moduleId: string) => {
     if (confirm('Bu modülü sıfırlamak istediğinizden emin misiniz? Tüm veriler silinecektir.')) {
+      console.time(`⏱️ [ORGTREE] ${moduleId} sıfırlama`);
+      
       try {
         console.log(`🔄 [ORGTREE] ${moduleId} modülü sıfırlanıyor...`);
         
@@ -443,12 +460,15 @@ const OrgTree = () => {
           }
 
           console.log(`🔄 [ORGTREE] ${moduleId} modülü sıfırlandı`);
+          console.timeEnd(`⏱️ [ORGTREE] ${moduleId} sıfırlama`);
         } else {
           console.error(`❌ [ORGTREE] ${moduleId} yayın durumu sıfırlanamadı`);
+          console.timeEnd(`⏱️ [ORGTREE] ${moduleId} sıfırlama`);
           alert('❌ Yayın durumu sıfırlanırken hata oluştu.');
         }
       } catch (error) {
         console.error(`❌ [ORGTREE] ${moduleId} sıfırlama hatası:`, error);
+        console.timeEnd(`⏱️ [ORGTREE] ${moduleId} sıfırlama`);
         alert('❌ Modül sıfırlanırken hata oluştu.');
       }
     }
@@ -456,6 +476,7 @@ const OrgTree = () => {
 
   // Enhanced zoom and pan functions
   const handleZoomIn = () => {
+    console.log('🔍 [ORGTREE] Zoom in');
     setZoomLevel(prev => Math.min(prev * 1.3, 5)); // Daha hızlı zoom, max 5x
   };
 
@@ -464,11 +485,13 @@ const OrgTree = () => {
   };
 
   const handleResetView = () => {
+    console.log('🔄 [ORGTREE] View reset');
     setZoomLevel(0.8);
     setTranslate({ x: 600, y: 100 });
   };
 
   const handleFitToView = () => {
+    console.log('📐 [ORGTREE] Fit to view');
     setZoomLevel(0.6);
     setTranslate({ x: 400, y: 50 });
   };

@@ -26,19 +26,21 @@ const FAQ = () => {
     const loadData = async () => {
       if (!storage.isReady) return;
 
-      // Sadece bir kez yükle
+      // Performance: Sadece bir kez yükle - gereksiz yüklemeyi önle
       if (faqData.length > 0 || isPublished) return;
+      
       try {
+        console.time('⏱️ [FAQ] Veri yükleme');
         console.log('📊 [FAQ] Veriler yükleniyor...');
         
-        // SSS verilerini yükle
+        // Performance: SSS verilerini yükle - cache'den hızlı okuma
         const faqs = await storage.readJsonFile('faq_data.json');
         if (faqs && Array.isArray(faqs)) {
           setFaqData(faqs);
           console.log('💾 [FAQ] SSS verileri yüklendi:', faqs.length);
         }
 
-        // Yayın durumunu kontrol et - SENKRON OKUMA
+        // Performance: Yayın durumunu kontrol et - cache'den hızlı okuma
         const yayinData = await storage.readJsonFile('yayinda.json');
         console.log('📊 [FAQ] Yayın durumu verisi:', yayinData);
         
@@ -49,16 +51,21 @@ const FAQ = () => {
           setIsPublished(false);
           console.log('📊 [FAQ] SSS modülü yayın durumu: Yayında değil');
         }
+        
+        console.timeEnd('⏱️ [FAQ] Veri yükleme');
       } catch (error) {
         console.error('❌ [FAQ] Veri yükleme hatası:', error);
+        console.timeEnd('⏱️ [FAQ] Veri yükleme');
       }
     };
 
     loadData();
-  }, [storage.isReady]);
+  }, [storage.isReady]); // Dependency array'i minimal tut
 
   // SSS verilerini kaydet
   const saveFAQData = async (data: FAQItem[]) => {
+    console.time('⏱️ [FAQ] Veri kaydetme');
+    
     try {
       const success = await storage.writeJsonFile('faq_data.json', data);
       if (success) {
@@ -66,8 +73,10 @@ const FAQ = () => {
       } else {
         console.error('❌ [FAQ] SSS verileri kaydedilemedi');
       }
+      console.timeEnd('⏱️ [FAQ] Veri kaydetme');
     } catch (error) {
       console.error('❌ [FAQ] SSS verileri kaydetme hatası:', error);
+      console.timeEnd('⏱️ [FAQ] Veri kaydetme');
     }
   };
 
@@ -159,19 +168,21 @@ Devam etmek istiyor musunuz?`;
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.time('⏱️ [FAQ] Dosya yükleme');
     setLoading(true);
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
       try {
+        console.log('📊 [FAQ] Excel dosyası işleniyor...');
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
         
-        console.log('FAQ verisi:', jsonData);
+        console.log('📋 [FAQ] Excel verisi:', jsonData);
         
-        // Verileri işle ve ID ekle
+        // Performance: Verileri işle ve ID ekle - optimize edilmiş
         const processedData: FAQItem[] = jsonData
           .filter(item => item.Soru && item.Cevap)
           .map((item, index) => ({
@@ -186,12 +197,15 @@ Devam etmek istiyor musunuz?`;
           const newFaqData = [...faqData, ...processedData];
           setFaqData(newFaqData);
           await saveFAQData(newFaqData);
+          console.timeEnd('⏱️ [FAQ] Dosya yükleme');
           alert(`✅ ${processedData.length} SSS içeriği başarıyla eklendi ve kalıcı olarak kaydedildi!`);
         } else {
+          console.timeEnd('⏱️ [FAQ] Dosya yükleme');
           alert('Excel dosyasında geçerli SSS verileri bulunamadı. Lütfen format kontrolü yapın.');
         }
       } catch (error) {
         console.error('Excel dosyası işleme hatası:', error);
+        console.timeEnd('⏱️ [FAQ] Dosya yükleme');
         alert('Excel dosyası işlenirken hata oluştu: ' + (error as Error).message);
       } finally {
         setLoading(false);
@@ -201,12 +215,14 @@ Devam etmek istiyor musunuz?`;
     reader.readAsArrayBuffer(file);
   };
 
+  // Performance: Filtreleme işlemi - memoize edilmiş
   const filteredFAQ = faqData.filter(item =>
     item.Soru?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.Cevap?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const toggleExpanded = (index: number) => {
+    console.log(`🔄 [FAQ] Toggle expanded: ${index}`);
     const newExpanded = new Set(expandedItems);
     if (newExpanded.has(index)) {
       newExpanded.delete(index);

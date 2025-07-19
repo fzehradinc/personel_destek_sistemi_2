@@ -1,10 +1,42 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Cache sistemi
+// Performance: Gelişmiş cache sistemi - 5 dakika TTL
 const storageCache = new Map<string, any>();
 const cacheExpiry = new Map<string, number>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 dakika
+const MAX_CACHE_SIZE = 50; // Maksimum cache boyutu
 
+// Performance: Cache temizleme fonksiyonu
+const cleanupCache = () => {
+  const now = Date.now();
+  const expiredKeys: string[] = [];
+  
+  cacheExpiry.forEach((expiry, key) => {
+    if (now > expiry) {
+      expiredKeys.push(key);
+    }
+  });
+  
+  expiredKeys.forEach(key => {
+    storageCache.delete(key);
+    cacheExpiry.delete(key);
+  });
+  
+  // Cache boyutu kontrolü
+  if (storageCache.size > MAX_CACHE_SIZE) {
+    const oldestKeys = Array.from(cacheExpiry.entries())
+      .sort(([,a], [,b]) => a - b)
+      .slice(0, storageCache.size - MAX_CACHE_SIZE)
+      .map(([key]) => key);
+    
+    oldestKeys.forEach(key => {
+      storageCache.delete(key);
+      cacheExpiry.delete(key);
+    });
+  }
+  
+  console.log(`🧹 [CACHE] Temizlik tamamlandı. Aktif cache: ${storageCache.size} öğe`);
+};
 // Web Storage API kullanarak dosya yönetimi
 const webStorage = {
   getItem: (key: string) => {
@@ -44,6 +76,8 @@ export const useElectronStorage = () => {
   const readJsonFile = useCallback(async (filename: string) => {
     if (!isReady) return null;
     
+    console.time(`⏱️ [STORAGE] ${filename} okuma`);
+    
     const cacheKey = filename;
     const now = Date.now();
     
@@ -51,7 +85,8 @@ export const useElectronStorage = () => {
     if (storageCache.has(cacheKey) && cacheExpiry.has(cacheKey)) {
       const expiry = cacheExpiry.get(cacheKey)!;
       if (now < expiry) {
-        console.log(`📋 Cache'den okundu: ${filename}`);
+        console.log(`📋 [CACHE] Cache'den okundu: ${filename}`);
+        console.timeEnd(`⏱️ [STORAGE] ${filename} okuma`);
         return storageCache.get(cacheKey);
       }
     }
@@ -65,9 +100,16 @@ export const useElectronStorage = () => {
       storageCache.set(cacheKey, result);
       cacheExpiry.set(cacheKey, now + CACHE_DURATION);
       
+      // Periyodik cache temizliği
+      if (Math.random() < 0.1) { // %10 ihtimalle temizlik yap
+        setTimeout(cleanupCache, 0);
+      }
+      
+      console.timeEnd(`⏱️ [STORAGE] ${filename} okuma`);
       return result;
     } catch (error) {
       console.error(`❌ JSON okuma hatası (${filename}):`, error);
+      console.timeEnd(`⏱️ [STORAGE] ${filename} okuma`);
       return null;
     }
   }, [isReady]);
@@ -75,6 +117,8 @@ export const useElectronStorage = () => {
   // JSON dosyası yaz - Web uyumlu
   const writeJsonFile = useCallback(async (filename: string, data: any) => {
     if (!isReady) return false;
+    
+    console.time(`⏱️ [STORAGE] ${filename} yazma`);
     
     try {
       const key = filename.replace('.json', '');
@@ -85,11 +129,14 @@ export const useElectronStorage = () => {
         const cacheKey = filename;
         storageCache.set(cacheKey, data);
         cacheExpiry.set(cacheKey, Date.now() + CACHE_DURATION);
+        console.log(`💾 [CACHE] Cache güncellendi: ${filename}`);
       }
       
+      console.timeEnd(`⏱️ [STORAGE] ${filename} yazma`);
       return success;
     } catch (error) {
       console.error(`❌ JSON yazma hatası (${filename}):`, error);
+      console.timeEnd(`⏱️ [STORAGE] ${filename} yazma`);
       return false;
     }
   }, [isReady]);
@@ -114,16 +161,19 @@ export const useElectronStorage = () => {
   const saveFile = useCallback(async (filename: string, data: string, encoding: string = 'utf8') => {
     if (!isReady) return false;
     
+    console.time(`⏱️ [FILE] ${filename} kaydetme`);
+    
     try {
-      // Dosya boyutu kontrolü
+      // Performance: Dosya boyutu kontrolü - optimize edilmiş
       const dataSize = new Blob([data]).size;
       const maxSize = 5 * 1024 * 1024; // 5MB limit
       
       if (dataSize > maxSize) {
+        console.timeEnd(`⏱️ [FILE] ${filename} kaydetme`);
         throw new Error(`Dosya boyutu çok büyük: ${(dataSize / 1024 / 1024).toFixed(1)} MB (max: 5 MB)`);
       }
       
-      // Base64 verisini localStorage'a kaydet
+      // Performance: Base64 verisini localStorage'a kaydet - optimize edilmiş
       let dataToStore = data;
       if (encoding === 'base64' && data.startsWith('data:')) {
         const base64Index = data.indexOf('base64,');
@@ -133,10 +183,12 @@ export const useElectronStorage = () => {
       }
       
       webStorage.setItem(`file_${filename}`, dataToStore);
-      console.log(`✅ Dosya kaydedildi: ${filename}`);
+      console.log(`✅ [FILE] Dosya kaydedildi: ${filename} (${(dataSize / 1024).toFixed(1)} KB)`);
+      console.timeEnd(`⏱️ [FILE] ${filename} kaydetme`);
       return true;
     } catch (error) {
       console.error(`❌ Dosya kaydetme hatası (${filename}):`, error);
+      console.timeEnd(`⏱️ [FILE] ${filename} kaydetme`);
       throw error;
     }
   }, [isReady]);
@@ -145,8 +197,12 @@ export const useElectronStorage = () => {
   const readFile = useCallback(async (filename: string, encoding: string = 'utf8') => {
     if (!isReady) return null;
     
+    console.time(`⏱️ [FILE] ${filename} okuma`);
+    
     try {
       const data = webStorage.getItem(`file_${filename}`);
+      console.timeEnd(`⏱️ [FILE] ${filename} okuma`);
+      
       if (data && encoding === 'base64') {
         // Base64 verisi için data URI formatında döndür
         return data.startsWith('data:') ? data : `data:application/octet-stream;base64,${data}`;
@@ -154,6 +210,7 @@ export const useElectronStorage = () => {
       return data;
     } catch (error) {
       console.error(`❌ Dosya okuma hatası (${filename}):`, error);
+      console.timeEnd(`⏱️ [FILE] ${filename} okuma`);
       return null;
     }
   }, [isReady]);
@@ -170,7 +227,7 @@ export const useElectronStorage = () => {
     }
   }, [isReady]);
 
-  // Uygulama bilgilerini al - Web uyumlu
+  // Performance: Uygulama bilgilerini al - Web uyumlu
   const getAppInfo = useCallback(async () => {
     if (!isReady) return null;
     
@@ -178,9 +235,23 @@ export const useElectronStorage = () => {
       version: '1.0.0-web',
       name: 'Personel Destek Sistemi (Web)',
       dataPath: 'localStorage',
-      isDev: import.meta.env.DEV
+      isDev: import.meta.env.DEV,
+      cacheSize: storageCache.size,
+      maxCacheSize: MAX_CACHE_SIZE
     };
   }, [isReady]);
+
+  // Performance: Component unmount'ta cache temizliği
+  useEffect(() => {
+    return () => {
+      // Component unmount olduğunda cache'i temizle
+      if (storageCache.size > 0) {
+        console.log(`🧹 [CACHE] Component unmount - cache temizleniyor: ${storageCache.size} öğe`);
+        storageCache.clear();
+        cacheExpiry.clear();
+      }
+    };
+  }, []);
 
   return {
     isReady,
@@ -191,6 +262,17 @@ export const useElectronStorage = () => {
     saveFile,
     readFile,
     fileExists,
-    getAppInfo
+    getAppInfo,
+    // Performance: Cache yönetimi için ek fonksiyonlar
+    clearCache: () => {
+      storageCache.clear();
+      cacheExpiry.clear();
+      console.log('🧹 [CACHE] Manuel cache temizliği yapıldı');
+    },
+    getCacheInfo: () => ({
+      size: storageCache.size,
+      maxSize: MAX_CACHE_SIZE,
+      keys: Array.from(storageCache.keys())
+    })
   };
 };

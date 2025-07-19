@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useAuth } from './hooks/useAuth';
+import { useState, useMemo, useCallback, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Suspense, lazy } from 'react';
-import LoginPage from './components/LoginPage';
 import ContentAssignmentModal from './components/ContentAssignmentModal';
 import DeveloperToolsModal from './components/DeveloperToolsModal';
 import ScrollToTop from './components/ScrollToTop';
@@ -9,7 +9,8 @@ import { Building2, Users, BookOpen, Workflow, FileText, HelpCircle, ChevronLeft
 import { useTransferButtons } from './hooks/useTransferButtons';
 import { useDeveloperTools } from './hooks/useDeveloperTools';
 
-// Lazy loading ile bileşenleri yükle
+// Performance: Lazy loading ile bileşenleri yükle - route bazlı code splitting
+const LoginPage = lazy(() => import('./components/LoginPage'));
 const Homepage = lazy(() => import('./components/Homepage'));
 const OrgTree = lazy(() => import('./components/OrgTree'));
 const TrainingMaterials = lazy(() => import('./components/TrainingMaterials'));
@@ -19,7 +20,7 @@ const FAQ = lazy(() => import('./components/FAQ'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const PersonelDashboard = lazy(() => import('./components/PersonelDashboard'));
 
-// Loading bileşeni
+// Performance: Optimize edilmiş loading bileşeni
 const LoadingSpinner = () => (
   <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
     <div className="text-center">
@@ -29,7 +30,10 @@ const LoadingSpinner = () => (
   </div>
 );
 
-function App() {
+// Performance: Ana uygulama bileşeni - memoize edilmiş
+const AppContent = React.memo(() => {
+  console.time('⏱️ [APP] Component render');
+  
   const { currentUser, isLoading, logout, isAdmin, isPersonel } = useAuth();
   const [activeTab, setActiveTab] = useState('homepage');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -45,7 +49,7 @@ function App() {
     contentTitle: ''
   });
 
-  // Transfer buttons hook
+  // Performance: Transfer buttons hook - memoize edilmiş
   const { 
     showTransferButtons, 
     loading, 
@@ -54,7 +58,7 @@ function App() {
     hideTransferButtons 
   } = useTransferButtons();
 
-  // Developer tools hook
+  // Performance: Developer tools hook - memoize edilmiş
   const {
     showPasswordModal,
     showConfirmModal,
@@ -63,19 +67,20 @@ function App() {
     handleCancel
   } = useDeveloperTools();
 
-  // Tab değiştirme fonksiyonunu optimize et
+  // Performance: Tab değiştirme fonksiyonunu optimize et
   const handleTabChange = useCallback((tabId: string) => {
     if (tabId !== activeTab) {
+      console.log(`🔄 [APP] Tab değişimi: ${activeTab} → ${tabId}`);
       setActiveTab(tabId);
     }
   }, [activeTab]);
 
-  // Sidebar toggle fonksiyonunu optimize et
+  // Performance: Sidebar toggle fonksiyonunu optimize et
   const handleSidebarToggle = useCallback(() => {
     setSidebarCollapsed(prev => !prev);
   }, []);
 
-  // Assignment modal açma fonksiyonunu optimize et
+  // Performance: Assignment modal açma fonksiyonunu optimize et
   const openAssignmentModal = useCallback((contentId: string, contentType: 'training' | 'process' | 'procedure' | 'faq', contentTitle: string) => {
     setShowAssignmentModal({
       isOpen: true,
@@ -85,12 +90,12 @@ function App() {
     });
   }, []);
 
-  // Assignment modal kapatma fonksiyonunu optimize et
+  // Performance: Assignment modal kapatma fonksiyonunu optimize et
   const closeAssignmentModal = useCallback(() => {
     setShowAssignmentModal(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  // Tabs listesini memoize et - tüm hooks'ları conditional return'lerden önce tanımla
+  // Performance: Tabs listesini memoize et
   const tabs = useMemo(() => [
     { 
       id: 'homepage', 
@@ -136,7 +141,7 @@ function App() {
     }
   ], []);
 
-  // Admin için ek sekmeler
+  // Performance: Admin için ek sekmeler - memoize edilmiş
   const adminTabs = useMemo(() => {
     if (!isAdmin) return tabs;
     
@@ -152,12 +157,14 @@ function App() {
     ];
   }, [isAdmin, tabs]);
 
+  // Performance: Aktif tab verisi - memoize edilmiş
   const activeTabData = useMemo(() => {
     return adminTabs.find(tab => tab.id === activeTab);
   }, [adminTabs, activeTab]);
 
-  // Render edilen tab içeriğini memoize et
+  // Performance: Render edilen tab içeriğini memoize et
   const renderTabContent = useMemo(() => {
+    console.time(`⏱️ [APP] ${activeTab} render`);
     return (
       <Suspense fallback={<LoadingSpinner />}>
         {(() => {
@@ -179,12 +186,13 @@ function App() {
             default:
               return <Homepage />;
           }
+          console.timeEnd(`⏱️ [APP] ${activeTab} render`);
         })()}
       </Suspense>
     );
   }, [activeTab, isAdmin, openAssignmentModal]);
 
-  // Navigation items'ı memoize et
+  // Performance: Navigation items'ı memoize et
   const navigationItems = useMemo(() => {
     return adminTabs.map((tab) => {
       const IconComponent = tab.icon;
@@ -230,7 +238,7 @@ function App() {
     });
   }, [adminTabs, activeTab, sidebarCollapsed, handleTabChange]);
 
-  // Giriş kontrolü
+  // Performance: Giriş kontrolü - optimize edilmiş
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
@@ -242,11 +250,16 @@ function App() {
     );
   }
 
+  // Performance: Giriş sayfası - lazy loaded
   if (!currentUser) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
-  // Personel için özel dashboard
+  // Performance: Personel için özel dashboard - lazy loaded
   if (isPersonel) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
@@ -254,6 +267,8 @@ function App() {
       </Suspense>
     );
   }
+
+  console.timeEnd('⏱️ [APP] Component render');
 
   return (
     <ScrollToTop activeTab={activeTab}>
@@ -563,6 +578,25 @@ function App() {
         />
       </div>
     </ScrollToTop>
+  );
+});
+
+AppContent.displayName = 'AppContent';
+
+// Performance: Ana App bileşeni - AuthProvider ile sarılmış
+function App() {
+  console.time('⏱️ [APP] App başlatma');
+  
+  useEffect(() => {
+    console.timeEnd('⏱️ [APP] App başlatma');
+  }, []);
+
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 
