@@ -124,7 +124,7 @@ const AdminDashboard = React.memo(() => {
   const renderStartTime = performance.now();
   console.log('🚀 [ADMIN-DASHBOARD] Component render başlatıldı');
   
-  const { currentUser, logout, isAdmin } = useAuth();
+  const { currentUser, logout, isAdmin, isPersonel } = useAuth();
   const [activeTab, setActiveTab] = useState('homepage');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState<{
@@ -253,13 +253,13 @@ const AdminDashboard = React.memo(() => {
 
   // Performance: Tab content rendering - Switch yerine object mapping
   const tabComponents = useMemo(() => ({
-    homepage: <Homepage />,
-    orgchart: <OrgTree />,
-    training: <TrainingMaterials onAssignContent={openAssignmentModal} />,
-    process: <ProcessFlow onAssignContent={openAssignmentModal} />,
-    procedures: <ProceduresInstructions onAssignContent={openAssignmentModal} />,
-    faq: <FAQ onAssignContent={openAssignmentModal} />,
-    users: isAdmin ? <UserManagement /> : <Homepage />
+    homepage: <Homepage isPersonelView={isPersonel} />,
+    orgchart: <OrgTree isPersonelView={isPersonel} />,
+    training: <TrainingMaterials onAssignContent={openAssignmentModal} isPersonelView={isPersonel} />,
+    process: <ProcessFlow onAssignContent={openAssignmentModal} isPersonelView={isPersonel} />,
+    procedures: <ProceduresInstructions onAssignContent={openAssignmentModal} isPersonelView={isPersonel} />,
+    faq: <FAQ onAssignContent={openAssignmentModal} isPersonelView={isPersonel} />,
+    users: isAdmin ? <UserManagement /> : <Homepage isPersonelView={isPersonel} />
   }), [isAdmin, openAssignmentModal]);
 
   // Performance: Render tab content - Suspense içinde
@@ -321,7 +321,7 @@ const AdminDashboard = React.memo(() => {
   }, [availableTabs, activeTab, sidebarCollapsed, handleTabChange]);
 
   // Admin kontrolü
-  if (!isAdmin) {
+  if (!isAdmin && !isPersonel) {
     console.log('🚫 [ADMIN-DASHBOARD] Not admin, redirecting');
     return <Navigate to="/dashboard" replace />;
   }
@@ -556,13 +556,13 @@ const AppRoutes = React.memo(() => {
         } 
       />
       
-      {/* Protected Route - Personel Dashboard */}
+      {/* Protected Route - Personel Dashboard - Reuse AdminDashboard with personnel view */}
       <Route 
         path="/dashboard" 
         element={
           <ProtectedRoute requiredRole="personel">
             <Suspense fallback={<LoadingSpinner />}>
-              <PersonelDashboard />
+              <AdminDashboard />
             </Suspense>
           </ProtectedRoute>
         } 
