@@ -19,7 +19,7 @@ const UserManagement = () => {
     errors: string[];
   } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const { getAllUsers, addUser, updateUser } = useAuth();
+  const { getAllUsers, addUser, updateUser, deleteUser } = useAuth();
   const storage = useWebStorage();
 
   // Kullanıcıları yükle
