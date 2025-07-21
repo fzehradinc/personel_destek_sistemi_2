@@ -11,7 +11,12 @@ interface FAQItem {
   fileName?: string;
 }
 
-const FAQ = () => {
+interface FAQProps {
+  onAssignContent?: (contentId: string, contentType: 'faq', contentTitle: string) => void;
+  isPersonelView?: boolean;
+}
+
+const FAQ: React.FC<FAQProps> = ({ onAssignContent, isPersonelView = false }) => {
   const [faqData, setFaqData] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -287,7 +292,7 @@ Devam etmek istiyor musunuz?`;
           {/* REMOVED: Yayın Durumu Bilgisi - Bu bölüm tamamen kaldırıldı */}
 
           {/* Dosya Yükleme - Sadece yayınlanmamışsa göster */}
-          {!isPublished && (
+          {!isPersonelView && !isPublished && (
             <div className="flex flex-col sm:flex-row gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <div className="relative">
@@ -336,7 +341,7 @@ Devam etmek istiyor musunuz?`;
           )}
 
           {/* Kalıcı Depolama Bilgisi - Sadece yayınlanmamışsa göster */}
-          {!isPublished && (
+          {!isPersonelView && !isPublished && (
             <div className="mt-4 text-sm text-gray-600">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 {storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
@@ -373,7 +378,7 @@ Devam etmek istiyor musunuz?`;
         </div>
 
         {/* Yayınlama Kontrolü - Sadece yayınlanmamışsa ve SSS varsa göster */}
-        {!isPublished && faqData.length > 0 && (
+        {!isPersonelView && !isPublished && faqData.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Rocket className="w-5 h-5" />
@@ -479,7 +484,7 @@ Devam etmek istiyor musunuz?`;
                       💡 {item.Cevap}
                     </div>
                     {/* Meta bilgiler - Sadece yayınlanmamışsa göster */}
-                    {!isPublished && item.fileName && (
+                    {!isPersonelView && !isPublished && item.fileName && (
                       <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500">
                         📁 {item.fileName} • 📅 {new Date(item.uploadDate).toLocaleDateString('tr-TR')}
                       </div>

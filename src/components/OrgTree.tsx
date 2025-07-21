@@ -44,7 +44,11 @@ interface OrganizationModule {
   uploadDate?: string;
 }
 
-const OrgTree = () => {
+interface OrgTreeProps {
+  isPersonelView?: boolean;
+}
+
+const OrgTree: React.FC<OrgTreeProps> = ({ isPersonelView = false }) => {
   const [modules, setModules] = useState<OrganizationModule[]>([
     { id: 'tb2_tb3', name: 'TB2 ve TB3 Entegrasyon Grubu', color: 'from-red-500 to-red-600', isLoaded: false, isPublished: false },
     { id: 'akinci', name: 'Akıncı Entegrasyon Grubu', color: 'from-blue-500 to-blue-600', isLoaded: false, isPublished: false },
@@ -765,7 +769,7 @@ const OrgTree = () => {
             </div>
 
             {/* KOŞULLU BİLGİ BLOĞU - Sadece yayınlanmamış modül varsa göster */}
-            {shouldShowInfoBlock && (
+            {!isPersonelView && shouldShowInfoBlock && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="font-medium text-blue-900 mb-2">
                   📋 Modül Yönetimi ve Birim Lideri Hiyerarşisi:
@@ -901,24 +905,29 @@ const OrgTree = () => {
                           <Eye className="w-4 h-4" />
                           Şemayı Görüntüle
                         </button>
-                        <button
+                        {!isPersonelView && (
+                          <button
                           onClick={() => publishModule(module.id)}
                           className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           <Rocket className="w-4 h-4" />
                           Modül Yayına Hazır
-                        </button>
-                        <button
+                          </button>
+                        )}
+                        {!isPersonelView && (
+                          <button
                           onClick={() => resetModule(module.id)}
                           className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                         >
                           <RotateCcw className="w-4 h-4" />
                           Modülü Sıfırla
-                        </button>
+                          </button>
+                        )}
                       </>
                     ) : (
                       // Yüklenmemiş modül
-                      <label className="block">
+                      !isPersonelView && (
+                        <label className="block">
                         <input
                           type="file"
                           accept=".xlsx,.xls"
@@ -950,7 +959,8 @@ const OrgTree = () => {
                             </>
                           )}
                         </div>
-                      </label>
+                        </label>
+                      )
                     )}
                   </div>
                 </div>

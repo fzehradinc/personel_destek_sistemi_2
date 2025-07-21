@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Heart, Plus, X, Calendar, User, Building2, Rocket, Eye, Settings, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useWebStorage } from '../hooks/useWebStorage';
@@ -38,7 +37,11 @@ interface ContentCreationForm {
   };
 }
 
-const Homepage = () => {
+interface HomepageProps {
+  isPersonelView?: boolean;
+}
+
+const Homepage: React.FC<HomepageProps> = ({ isPersonelView = false }) => {
   const [currentDevelopments, setCurrentDevelopments] = useState<CurrentDevelopment[]>([]);
   const [corporateValues, setCorporateValues] = useState<CorporateValue[]>([]);
   const [showContentModal, setShowContentModal] = useState(false);
@@ -464,7 +467,7 @@ const Homepage = () => {
               </div>
               
               {/* Yönetim butonu - SADECE YAYINLANMAMIŞ İÇERİK VARSA GÖSTER */}
-              {shouldShowManagementButton && (
+              {shouldShowManagementButton && !isPersonelView && (
                 <button
                   onClick={toggleManagementPanel}
                   className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
@@ -606,19 +609,21 @@ const Homepage = () => {
                 </div>
               </div>
               
-              <button
-                onClick={openContentCreationModal}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center gap-3 mx-auto shadow-lg hover:shadow-xl"
-              >
-                <Plus className="w-6 h-6" />
-                İçerik Oluşturmaya Başla
-              </button>
+              {!isPersonelView && (
+                <button
+                  onClick={openContentCreationModal}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 flex items-center gap-3 mx-auto shadow-lg hover:shadow-xl"
+                >
+                  <Plus className="w-6 h-6" />
+                  İçerik Oluşturmaya Başla
+                </button>
+              )}
             </div>
           </div>
         )}
 
         {/* Yönetim Paneli - SADECE YAYINLANMAMIŞ İÇERİK VARSA GÖSTER */}
-        {showManagementPanel && shouldShowManagementButton && (
+        {showManagementPanel && shouldShowManagementButton && !isPersonelView && (
           <div className="mt-8 bg-white rounded-lg shadow-lg border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">İçerik Yönetimi</h3>
