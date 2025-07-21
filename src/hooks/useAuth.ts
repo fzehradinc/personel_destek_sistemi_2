@@ -177,12 +177,17 @@ export const useAuth = () => {
       return { success: false, message: 'Yetkiniz yok' };
     }
 
-    console.log('🔄 [AUTH] Yeni kullanıcı ekleniyor:', userData.username);
+    console.log('🔄 [AUTH] Yeni kullanıcı ekleniyor:', {
+      username: userData.username,
+      name: userData.name,
+      role: userData.role
+    });
     
     try {
       const users = await loadUsers();
       
       if (users.some(u => u.username === userData.username)) {
+        console.log('❌ [AUTH] Kullanıcı adı zaten mevcut:', userData.username);
         return { success: false, message: 'Bu kullanıcı adı zaten kullanılıyor' };
       }
 
@@ -195,7 +200,12 @@ export const useAuth = () => {
       const updatedUsers = [...users, newUser];
       await storage.writeJsonFile('users.json', updatedUsers);
       
-      console.log('✅ [AUTH] Kullanıcı başarıyla eklendi:', newUser.username);
+      console.log('✅ [AUTH] Kullanıcı başarıyla eklendi:', {
+        id: newUser.id,
+        username: newUser.username,
+        name: newUser.name,
+        role: newUser.role
+      });
       return { success: true, message: 'Kullanıcı başarıyla eklendi' };
     } catch (error) {
       console.error('❌ [AUTH] Kullanıcı ekleme hatası:', error);
@@ -209,20 +219,27 @@ export const useAuth = () => {
       return { success: false, message: 'Yetkiniz yok' };
     }
 
-    console.log('🔄 [AUTH] Kullanıcı güncelleniyor:', userId);
+    console.log('🔄 [AUTH] Kullanıcı güncelleniyor:', {
+      userId,
+      updates: Object.keys(updates)
+    });
     
     try {
       const users = await loadUsers();
       const userIndex = users.findIndex(u => u.id === userId);
       
       if (userIndex === -1) {
+        console.log('❌ [AUTH] Kullanıcı bulunamadı:', userId);
         return { success: false, message: 'Kullanıcı bulunamadı' };
       }
 
       users[userIndex] = { ...users[userIndex], ...updates };
       await storage.writeJsonFile('users.json', users);
       
-      console.log('✅ [AUTH] Kullanıcı başarıyla güncellendi');
+      console.log('✅ [AUTH] Kullanıcı başarıyla güncellendi:', {
+        userId,
+        username: users[userIndex].username
+      });
       return { success: true, message: 'Kullanıcı başarıyla güncellendi' };
     } catch (error) {
       console.error('❌ [AUTH] Kullanıcı güncelleme hatası:', error);

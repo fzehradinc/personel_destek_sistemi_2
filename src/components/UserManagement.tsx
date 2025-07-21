@@ -17,24 +17,31 @@ const UserManagement = () => {
     addedCount: number;
     errors: string[];
   } | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { getAllUsers, addUser, updateUser } = useAuth();
 
   // Kullanıcıları yükle
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const userList = await getAllUsers();
       setUsers(userList);
+      console.log('✅ [USER-MANAGEMENT] Kullanıcı listesi yüklendi:', userList.length);
     } catch (error) {
       console.error('❌ Kullanıcılar yüklenirken hata:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllUsers]);
 
+  // Kullanıcı listesini yenile
+  const refreshUserList = useCallback(() => {
+    console.log('🔄 [USER-MANAGEMENT] Kullanıcı listesi yenileniyor...');
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers, refreshTrigger]);
 
   // Excel dosyası yükleme fonksiyonu
   const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,7 +144,7 @@ const UserManagement = () => {
 
       // Liste güncelle
       if (addedCount > 0) {
-        await loadUsers();
+        refreshUserList();
       }
 
     } catch (error) {
@@ -475,15 +482,39 @@ const UserManagement = () => {
           }}
           user={editingUser}
           onSave={async (userData) => {
+            setLoading(true);
+            try {
+              let result;
             if (editingUser) {
-              await updateUser(editingUser.id, userData);
+                result = await updateUser(editingUser.id, userData);
             } else {
-              await addUser(userData);
+                result = await addUser(userData);
             }
+              
+              if (result.success) {
+                console.log('✅ [USER-MANAGEMENT] Kullanıcı işlemi başarılı:', result.message);
+                
+                // Modal'ı kapat
             setShowAddModal(false);
             setEditingUser(null);
-            loadUsers();
+                
+                // Listeyi yenile
+                refreshUserList();
+                
+                // Başarı bildirimi
+                alert(`✅ ${editingUser ? 'Kullanıcı güncellendi' : 'Kullanıcı eklendi'}: ${result.message}`);
+              } else {
+                console.error('❌ [USER-MANAGEMENT] Kullanıcı işlemi başarısız:', result.message);
+                alert(`❌ Hata: ${result.message}`);
+              }
+            } catch (error) {
+              console.error('❌ [USER-MANAGEMENT] Kullanıcı işlemi hatası:', error);
+              alert('❌ İşlem sırasında beklenmeyen bir hata oluştu.');
+            } finally {
+              setLoading(false);
+            }
           }}
+          loading={loading}
         />
 
         {/* Excel Import Modal */}
@@ -504,12 +535,14 @@ const UserModal = ({
   isOpen, 
   onClose, 
   user, 
-  onSave 
+  onSave,
+  loading
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   user: User | null; 
-  onSave: (userData: Omit<User, 'id' | 'createdAt'>) => void; 
+  onSave: (userData: Omit<User, 'id' | 'createdAt'>) => void;
+  loading?: boolean;
 }) => {
   const [formData, setFormData] = useState({
     username: '',
@@ -547,6 +580,25 @@ const UserModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Form validasyonu
+    if (!formData.username.trim() || !formData.name.trim()) {
+      alert('❌ Kullanıcı adı ve ad soyad zorunludur.');
+      return;
+    }
+    
+    if (!user && !formData.password.trim()) {
+      alert('❌ Yeni kullanıcı için şifre zorunludur.');
+      return;
+    }
+    
+    console.log('📝 [USER-MODAL] Form gönderiliyor:', {
+      username: formData.username,
+      name: formData.name,
+      role: formData.role,
+      isEdit: !!user
+    });
+    
     onSave(formData);
   };
 
@@ -664,9 +716,17 @@ const UserModal = ({
             </button>
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
-              {user ? 'Güncelle' : 'Ekle'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  {user ? 'Güncelleniyor...' : 'Ekleniyor...'}
+                </>
+              ) : (
+                user ? 'Güncelle' : 'Ekle'
+              )}
             </button>
           </div>
         </form>
