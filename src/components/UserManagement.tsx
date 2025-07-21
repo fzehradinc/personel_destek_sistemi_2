@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Eye, EyeOff, UserPlus, Shield, Calendar } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Eye, EyeOff, UserPlus, Shield, Calendar, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { User } from '../types/user';
 import { useAuth } from '../hooks/useAuth';
 
@@ -8,6 +9,14 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showExcelImport, setShowExcelImport] = useState(false);
+  const [excelImportLoading, setExcelImportLoading] = useState(false);
+  const [importResults, setImportResults] = useState<{
+    success: boolean;
+    message: string;
+    addedCount: number;
+    errors: string[];
+  } | null>(null);
   const { getAllUsers, addUser, updateUser } = useAuth();
 
   // Kullanıcıları yükle
@@ -27,6 +36,159 @@ const UserManagement = () => {
     loadUsers();
   }, []);
 
+  // Excel dosyası yükleme fonksiyonu
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelImportLoading(true);
+    setImportResults(null);
+
+    try {
+      console.log('📊 [USER-MANAGEMENT] Excel dosyası işleniyor:', file.name);
+      
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
+
+      console.log('📋 [USER-MANAGEMENT] Excel verisi:', jsonData);
+
+      // Excel verilerini User formatına çevir
+      const users: Omit<User, 'id' | 'createdAt'>[] = [];
+      const errors: string[] = [];
+
+      jsonData.forEach((row, index) => {
+        try {
+          // Zorunlu alanları kontrol et
+          if (!row['Kullanıcı Adı'] || !row['Şifre'] || !row['Ad Soyad']) {
+            errors.push(`Satır ${index + 2}: Kullanıcı Adı, Şifre ve Ad Soyad zorunludur`);
+            return;
+          }
+
+          // Rol kontrolü
+          const role = row['Rol']?.toString().toLowerCase();
+          if (role !== 'admin' && role !== 'personel') {
+            errors.push(`Satır ${index + 2}: Rol 'admin' veya 'personel' olmalıdır`);
+            return;
+          }
+
+          // Aktiflik durumu kontrolü
+          let isActive = true;
+          if (row['Aktiflik Durumu'] !== undefined) {
+            const activeValue = row['Aktiflik Durumu']?.toString().toLowerCase();
+            isActive = activeValue === 'true' || activeValue === '1' || activeValue === 'aktif';
+          }
+
+          const user: Omit<User, 'id' | 'createdAt'> = {
+            username: row['Kullanıcı Adı'].toString().trim(),
+            password: row['Şifre'].toString().trim(),
+            name: row['Ad Soyad'].toString().trim(),
+            email: row['E-posta']?.toString().trim() || '',
+            department: row['Departman']?.toString().trim() || '',
+            role: role as 'admin' | 'personel',
+            isActive
+          };
+
+          users.push(user);
+        } catch (error) {
+          errors.push(`Satır ${index + 2}: Veri işleme hatası - ${(error as Error).message}`);
+        }
+      });
+
+      console.log('👥 [USER-MANAGEMENT] İşlenen kullanıcılar:', users.length);
+      console.log('❌ [USER-MANAGEMENT] Hatalar:', errors.length);
+
+      if (users.length === 0) {
+        setImportResults({
+          success: false,
+          message: 'Excel dosyasında geçerli kullanıcı verisi bulunamadı',
+          addedCount: 0,
+          errors
+        });
+        return;
+      }
+
+      // Kullanıcıları toplu olarak ekle
+      let addedCount = 0;
+      const addErrors: string[] = [...errors];
+
+      for (const user of users) {
+        try {
+          const result = await addUser(user);
+          if (result.success) {
+            addedCount++;
+          } else {
+            addErrors.push(`${user.username}: ${result.message}`);
+          }
+        } catch (error) {
+          addErrors.push(`${user.username}: ${(error as Error).message}`);
+        }
+      }
+
+      setImportResults({
+        success: addedCount > 0,
+        message: addedCount > 0 
+          ? `${addedCount} kullanıcı başarıyla eklendi${addErrors.length > 0 ? `, ${addErrors.length} hata oluştu` : ''}`
+          : 'Hiçbir kullanıcı eklenemedi',
+        addedCount,
+        errors: addErrors
+      });
+
+      // Liste güncelle
+      if (addedCount > 0) {
+        await loadUsers();
+      }
+
+    } catch (error) {
+      console.error('❌ [USER-MANAGEMENT] Excel işleme hatası:', error);
+      setImportResults({
+        success: false,
+        message: 'Excel dosyası işlenirken hata oluştu',
+        addedCount: 0,
+        errors: [(error as Error).message]
+      });
+    } finally {
+      setExcelImportLoading(false);
+      // Input'u temizle
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
+  };
+
+  // Excel template indirme
+  const downloadExcelTemplate = () => {
+    const templateData = [
+      {
+        'Kullanıcı Adı': 'ornek_kullanici',
+        'Şifre': 'sifre123',
+        'Ad Soyad': 'Örnek Kullanıcı',
+        'E-posta': 'ornek@company.com',
+        'Departman': 'IT',
+        'Rol': 'personel',
+        'Aktiflik Durumu': 'true'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Kullanıcılar');
+    
+    // Sütun genişliklerini ayarla
+    ws['!cols'] = [
+      { wch: 15 }, // Kullanıcı Adı
+      { wch: 12 }, // Şifre
+      { wch: 20 }, // Ad Soyad
+      { wch: 25 }, // E-posta
+      { wch: 15 }, // Departman
+      { wch: 10 }, // Rol
+      { wch: 15 }  // Aktiflik Durumu
+    ];
+
+    XLSX.writeFile(wb, 'kullanici_sablonu.xlsx');
+  };
+
   return (
     <div className="w-full min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -42,13 +204,22 @@ const UserManagement = () => {
                 <p className="text-gray-600">Sistem kullanıcılarını yönetin ve yetkilendirin</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <UserPlus className="w-5 h-5" />
-              Yeni Kullanıcı
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowExcelImport(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-5 h-5" />
+                Excel İmport
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <UserPlus className="w-5 h-5" />
+                Yeni Kullanıcı
+              </button>
+            </div>
           </div>
 
           {/* İstatistikler */}
@@ -91,6 +262,65 @@ const UserManagement = () => {
             </div>
           </div>
         </div>
+
+        {/* Excel Import Sonuçları */}
+        {importResults && (
+          <div className={`rounded-lg shadow-sm border p-6 mb-6 ${
+            importResults.success 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              {importResults.success ? (
+                <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h3 className={`font-medium mb-2 ${
+                  importResults.success ? 'text-green-900' : 'text-red-900'
+                }`}>
+                  Excel Import Sonucu
+                </h3>
+                <p className={`mb-3 ${
+                  importResults.success ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {importResults.message}
+                </p>
+                
+                {importResults.addedCount > 0 && (
+                  <div className="bg-white rounded-lg p-3 mb-3">
+                    <div className="text-sm font-medium text-gray-900 mb-1">
+                      ✅ Başarıyla Eklenen: {importResults.addedCount} kullanıcı
+                    </div>
+                  </div>
+                )}
+
+                {importResults.errors.length > 0 && (
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-sm font-medium text-gray-900 mb-2">
+                      ❌ Hatalar ({importResults.errors.length}):
+                    </div>
+                    <div className="text-xs text-gray-700 space-y-1 max-h-32 overflow-y-auto">
+                      {importResults.errors.map((error, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <span className="text-red-500 flex-shrink-0">•</span>
+                          <span>{error}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setImportResults(null)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Kullanıcı Listesi */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -254,6 +484,15 @@ const UserManagement = () => {
             setEditingUser(null);
             loadUsers();
           }}
+        />
+
+        {/* Excel Import Modal */}
+        <ExcelImportModal
+          isOpen={showExcelImport}
+          onClose={() => setShowExcelImport(false)}
+          onFileUpload={handleExcelUpload}
+          loading={excelImportLoading}
+          onDownloadTemplate={downloadExcelTemplate}
         />
       </div>
     </div>
@@ -431,6 +670,169 @@ const UserModal = ({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+// Excel Import Modal Bileşeni
+const ExcelImportModal = ({ 
+  isOpen, 
+  onClose, 
+  onFileUpload,
+  loading,
+  onDownloadTemplate
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  loading: boolean;
+  onDownloadTemplate: () => void;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-100 p-2 rounded-lg">
+                <FileSpreadsheet className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Excel'den Kullanıcı İmport</h3>
+                <p className="text-sm text-gray-600">Toplu kullanıcı ekleme işlemi</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-2"
+              disabled={loading}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Excel Format Bilgisi */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              📋 Excel Dosyası Format Gereksinimleri
+            </h4>
+            <div className="text-sm text-blue-800 space-y-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="font-medium mb-1">Zorunlu Sütunlar:</div>
+                  <ul className="space-y-1 text-xs">
+                    <li>• <strong>Kullanıcı Adı</strong> (benzersiz olmalı)</li>
+                    <li>• <strong>Şifre</strong> (minimum 3 karakter)</li>
+                    <li>• <strong>Ad Soyad</strong> (tam ad)</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-medium mb-1">Opsiyonel Sütunlar:</div>
+                  <ul className="space-y-1 text-xs">
+                    <li>• <strong>E-posta</strong> (geçerli format)</li>
+                    <li>• <strong>Departman</strong> (metin)</li>
+                    <li>• <strong>Rol</strong> (admin/personel)</li>
+                    <li>• <strong>Aktiflik Durumu</strong> (true/false)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Template İndirme */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-gray-900 mb-1">📄 Excel Şablonu</h4>
+                <p className="text-sm text-gray-600">
+                  Doğru format için örnek Excel dosyasını indirin
+                </p>
+              </div>
+              <button
+                onClick={onDownloadTemplate}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                disabled={loading}
+              >
+                <Download className="w-4 h-4" />
+                Şablon İndir
+              </button>
+            </div>
+          </div>
+
+          {/* Dosya Yükleme */}
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <div className="mb-4">
+              <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                Excel Dosyası Seçin
+              </h4>
+              <p className="text-gray-600 text-sm">
+                .xlsx veya .xls formatında dosya yükleyebilirsiniz
+              </p>
+            </div>
+
+            <label className="inline-block">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={onFileUpload}
+                className="hidden"
+                disabled={loading}
+              />
+              <div className={`
+                px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer inline-flex items-center gap-2
+                ${loading 
+                  ? 'bg-gray-400 text-white cursor-not-allowed' 
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+                }
+              `}>
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    İşleniyor...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    Dosya Seç ve Yükle
+                  </>
+                )}
+              </div>
+            </label>
+          </div>
+
+          {/* Uyarılar */}
+          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800">
+                <div className="font-medium mb-1">⚠️ Önemli Notlar:</div>
+                <ul className="space-y-1 text-xs">
+                  <li>• Aynı kullanıcı adına sahip kayıtlar atlanacaktır</li>
+                  <li>• Hatalı formatdaki satırlar işlenmeyecektir</li>
+                  <li>• İşlem sonrası detaylı rapor gösterilecektir</li>
+                  <li>• Büyük dosyalar için işlem biraz zaman alabilir</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors font-medium"
+            disabled={loading}
+          >
+            {loading ? 'İşlem devam ediyor...' : 'Kapat'}
+          </button>
+        </div>
       </div>
     </div>
   );
