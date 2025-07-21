@@ -201,6 +201,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
+  }
+  )
 
   // Logout function
   const logout = useCallback(async () => {
