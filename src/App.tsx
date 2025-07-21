@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { lazy } from 'react';
 import ContentAssignmentModal from './components/ContentAssignmentModal';
 import DeveloperToolsModal from './components/DeveloperToolsModal';
+import PasswordChangeModal from './components/PasswordChangeModal';
 import ScrollToTop from './components/ScrollToTop';
 import { Building2, Users, BookOpen, Workflow, FileText, HelpCircle, ChevronLeft, ChevronRight, Home, Download, Upload, Package, EyeOff, LogOut, UserCog, Settings } from 'lucide-react';
 import { useTransferButtons } from './hooks/useTransferButtons';
