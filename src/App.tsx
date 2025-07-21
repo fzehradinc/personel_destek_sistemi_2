@@ -463,7 +463,8 @@ const AdminDashboard = React.memo(() => {
               </div>
               <div className="flex items-center gap-4">
                 {activeTabData && (
-                  <span style={{ display: 'none' }}>✅ Admin Dashboard Yüklendi</span>
+                  <>
+                    <span style={{ display: 'none' }}>✅ Admin Dashboard Yüklendi</span>
                     <div className={`
                       w-10 h-10 rounded-xl bg-gradient-to-r ${activeTabData.color} 
                       flex items-center justify-center text-white shadow-lg
@@ -478,6 +479,7 @@ const AdminDashboard = React.memo(() => {
                         {activeTabData.description}
                       </p>
                     </div>
+                  </>
                   </>
                 )}
               </div>
