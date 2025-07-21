@@ -548,8 +548,6 @@ const UserModal = ({
     username: '',
     password: '',
     name: '',
-    email: '',
-    department: '',
     role: 'personel' as 'admin' | 'personel',
     isActive: true
   });
@@ -560,8 +558,6 @@ const UserModal = ({
         username: user.username,
         password: '', // Şifre güvenlik için boş bırakılır
         name: user.name,
-        email: user.email || '',
-        department: user.department || '',
         role: user.role,
         isActive: user.isActive
       });
@@ -570,8 +566,6 @@ const UserModal = ({
         username: '',
         password: '',
         name: '',
-        email: '',
-        department: '',
         role: 'personel',
         isActive: true
       });
@@ -652,30 +646,6 @@ const UserModal = ({
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              E-posta
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Departman
-            </label>
-            <input
-              type="text"
-              value={formData.department}
-              onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
