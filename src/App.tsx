@@ -462,7 +462,7 @@ const AdminDashboard = React.memo(() => {
                 ✅ Admin Dashboard Yüklendi
               </div>
               <div className="flex items-center gap-4">
-                {activeTabData && (
+                <div style={{ display: 'none' }}>✅ Admin Dashboard Yüklendi</div>
                   <>
                     <span style={{ display: 'none' }}>✅ Admin Dashboard Yüklendi</span>
                     <div className={`
