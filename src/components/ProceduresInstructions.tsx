@@ -15,7 +15,12 @@ fileSize?: string;
 fileUrl?: string; // Dosya URL'si
 }
 
-const ProceduresInstructions = () => {
+interface ProceduresInstructionsProps {
+  onAssignContent?: (contentId: string, contentType: 'procedure', contentTitle: string) => void;
+  isPersonelView?: boolean;
+}
+
+const ProceduresInstructions: React.FC<ProceduresInstructionsProps> = ({ onAssignContent, isPersonelView = false }) => {
 const [procedures, setProcedures] = useState<ProcedureInstruction[]>([]);
 const [loading, setLoading] = useState(false);
 const [searchTerm, setSearchTerm] = useState('');
@@ -626,7 +631,7 @@ return (
 {/* REMOVED: Yayın Durumu Bilgisi - Bu bölüm tamamen kaldırıldı */}
 
 {/* Kalıcı Depolama Bilgisi - Sadece yayınlanmamışsa göster */}
-{!isPublished && (
+{!isPersonelView && !isPublished && (
 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
 <div className="font-medium text-green-900 mb-2">
 🌐 Web Uygulaması - Tarayıcı Depolama
@@ -642,7 +647,7 @@ return (
 </div>
 
 {/* Yükleme Alanı - Sadece yayınlanmamışsa göster */}
-{!isPublished && (
+{!isPersonelView && !isPublished && (
 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
 <Upload className="w-5 h-5" />
@@ -763,7 +768,7 @@ Prosedür/Talimat Ekle
 )}
 
 {/* Yayınlama Kontrolü */}
-{!isPublished && procedures.length > 0 && (
+{!isPersonelView && !isPublished && procedures.length > 0 && (
 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
 <Rocket className="w-5 h-5" />
@@ -831,7 +836,7 @@ className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-o
 <div className="text-sm text-gray-600">
 <span className="font-medium">{filteredProcedures.length}</span> prosedür/talimat bulundu
 </div>
-{!isPublished && (
+{!isPersonelView && !isPublished && (
 <div className="flex items-center gap-4">
 <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
 ✏️ Düzenleme modu aktif
@@ -860,7 +865,7 @@ Tümünü Temizle
 <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">
 {procedure.title}
 </h3>
-{!isPublished && (
+{!isPersonelView && !isPublished && (
 <button
 onClick={() => deleteProcedure(procedure.id)}
 className="text-red-600 hover:text-red-800 p-1 ml-2"
@@ -891,7 +896,7 @@ title="Sil"
 {procedure.fileSize && <span>{procedure.fileSize}</span>}
 </div>
 
-{procedure.fileName && (
+{!isPersonelView && procedure.fileName && !isPublished && (
 <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
 <span>📁</span>
 <span className="truncate">{procedure.fileName}</span>
