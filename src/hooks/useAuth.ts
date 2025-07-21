@@ -262,6 +262,40 @@ export const useAuth = () => {
     return await loadUsers();
   }, [currentUser?.role, loadUsers]);
 
+  // Kullanıcı silme fonksiyonu
+  const deleteUser = useCallback(async (userId: string): Promise<{ success: boolean; message: string }> => {
+    if (currentUser?.role !== 'admin') {
+      return { success: false, message: 'Yetkiniz yok' };
+    }
+
+    console.log('🗑️ [AUTH] Kullanıcı siliniyor:', userId);
+    
+    try {
+      const users = await loadUsers();
+      const userToDelete = users.find(u => u.id === userId);
+      
+      if (!userToDelete) {
+        return { success: false, message: 'Kullanıcı bulunamadı' };
+      }
+
+      // Admin'in kendini silmesini engelle
+      if (userToDelete.username === 'admin' && userToDelete.role === 'admin') {
+        return { success: false, message: 'Sistem yöneticisi hesabı silinemez' };
+      }
+
+      const updatedUsers = users.filter(u => u.id !== userId);
+      await storage.writeJsonFile('users.json', updatedUsers);
+      
+      console.log('✅ [AUTH] Kullanıcı başarıyla silindi:', {
+        userId,
+        username: userToDelete.username
+      });
+      return { success: true, message: 'Kullanıcı başarıyla silindi' };
+    } catch (error) {
+      console.error('❌ [AUTH] Kullanıcı silme hatası:', error);
+      return { success: false, message: 'Kullanıcı silinirken hata oluştu' };
+    }
+  }, [currentUser?.role, loadUsers]);
   // Performans: İlk yükleme - sadece bir kez çalışacak şekilde optimize
   useEffect(() => {
     let isMounted = true;
@@ -292,6 +326,7 @@ export const useAuth = () => {
     logout,
     addUser,
     updateUser,
+    deleteUser,
     getAllUsers,
     isAdmin: currentUser?.role === 'admin',
     isPersonel: currentUser?.role === 'personel'

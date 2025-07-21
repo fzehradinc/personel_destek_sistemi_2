@@ -53,6 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout: authData.logout,
     addUser: authData.addUser,
     updateUser: authData.updateUser,
+    deleteUser: authData.deleteUser,
     getAllUsers: authData.getAllUsers,
     isAdmin: authData.isAdmin,
     isPersonel: authData.isPersonel

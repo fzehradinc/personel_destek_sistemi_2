@@ -170,13 +170,16 @@ const UserManagement = () => {
   const downloadExcelTemplate = () => {
     const templateData = [
       {
-        'Kullanıcı Adı': 'ornek_kullanici',
-        'Şifre': 'sifre123',
-        'Ad Soyad': 'Örnek Kullanıcı',
-        'E-posta': 'ornek@company.com',
-        'Departman': 'IT',
-        'Rol': 'personel',
-        'Aktiflik Durumu': 'true'
+        'Kullanıcı Adı': 'abc',
+        'Şifre': '1234',
+        'Ad Soyad': 'Ayşe Yılmaz',
+        'Rol': 'Personel'
+      },
+      {
+        'Kullanıcı Adı': 'def',
+        'Şifre': '1234',
+        'Ad Soyad': 'Cihan Yılmaz',
+        'Rol': 'Admin'
       }
     ];
 
@@ -186,13 +189,10 @@ const UserManagement = () => {
     
     // Sütun genişliklerini ayarla
     ws['!cols'] = [
-      { wch: 15 }, // Kullanıcı Adı
+      { wch: 12 }, // Kullanıcı Adı
       { wch: 12 }, // Şifre
-      { wch: 20 }, // Ad Soyad
-      { wch: 25 }, // E-posta
-      { wch: 15 }, // Departman
-      { wch: 10 }, // Rol
-      { wch: 15 }  // Aktiflik Durumu
+      { wch: 15 }, // Ad Soyad
+      { wch: 10 }  // Rol
     ];
 
     XLSX.writeFile(wb, 'kullanici_sablonu.xlsx');
@@ -477,29 +477,21 @@ const UserManagement = () => {
           onDelete={async (userId) => {
             setLoading(true);
             try {
-              // Admin'in kendini silmesini engelle
-              if (editingUser?.role === 'admin' && editingUser?.username === 'admin') {
-                alert('❌ Sistem yöneticisi hesabı silinemez.');
-                return;
+              const result = await deleteUser(userId);
+              
+              if (result.success) {
+                // Modal'ı kapat
+                setEditingUser(null);
+                
+                // Listeyi yenile
+                refreshUserList();
+                
+                alert('✅ ' + result.message);
+                console.log('✅ [USER-MANAGEMENT] Kullanıcı silme işlemi tamamlandı');
+              } else {
+                alert('❌ ' + result.message);
+                console.error('❌ [USER-MANAGEMENT] Kullanıcı silme başarısız:', result.message);
               }
-              
-              console.log('🗑️ [USER-MANAGEMENT] Kullanıcı siliniyor:', userId);
-              
-              // Kullanıcıyı sil (localStorage'dan)
-              const users = await getAllUsers();
-              const updatedUsers = users.filter(u => u.id !== userId);
-              
-              // Güncellenmiş kullanıcı listesini kaydet
-              await storage.writeJsonFile('users.json', updatedUsers);
-              
-              // Modal'ı kapat
-              setEditingUser(null);
-              
-              // Listeyi yenile
-              refreshUserList();
-              
-              alert('✅ Kullanıcı başarıyla silindi.');
-              console.log('✅ [USER-MANAGEMENT] Kullanıcı silme işlemi tamamlandı');
             } catch (error) {
               console.error('❌ [USER-MANAGEMENT] Kullanıcı silme hatası:', error);
               alert('❌ Kullanıcı silinirken hata oluştu.');

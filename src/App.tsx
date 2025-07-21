@@ -520,6 +520,12 @@ const AdminDashboard = React.memo(() => {
           onConfirm={handleConfirm}
           onCancel={handleCancel}
         />
+
+        {/* Password Change Modal */}
+        <PasswordChangeModal
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+        />
       </div>
     </ScrollToTop>
   );
