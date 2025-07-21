@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Check } from 'lucide-react';
 import { User } from '../types/user';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { useContentAssignment } from '../hooks/useContentAssignment';
 
 interface ContentAssignmentModalProps {
