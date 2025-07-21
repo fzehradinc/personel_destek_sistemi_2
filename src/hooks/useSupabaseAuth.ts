@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { userService, DatabaseUser } from '../lib/supabase';
+import { userService, DatabaseUser, isSupabaseAvailable } from '../lib/supabase';
 import { User } from '../types/user';
-import bcrypt from 'bcryptjs';
+import { useAuth as useLocalAuth } from './useAuth';
 
 // Convert DatabaseUser to User type
 const convertDatabaseUser = (dbUser: DatabaseUser): User => ({
@@ -18,6 +18,18 @@ const convertDatabaseUser = (dbUser: DatabaseUser): User => ({
 });
 
 export const useSupabaseAuth = () => {
+  // Fallback to local auth if Supabase is not available
+  const localAuth = useLocalAuth();
+  
+  // If Supabase is not available, return local auth
+  if (!isSupabaseAvailable) {
+    console.log('⚠️ [AUTH] Supabase not available, using local authentication');
+    return {
+      ...localAuth,
+      isInitialized: !localAuth.isLoading
+    };
+  }
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);

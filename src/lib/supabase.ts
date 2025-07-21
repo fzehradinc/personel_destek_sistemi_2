@@ -4,11 +4,17 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Check if we have real Supabase credentials (not placeholders)
+const hasValidSupabaseConfig = supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'your-project-url.supabase.co' &&
+  supabaseAnonKey !== 'your-anon-key';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = hasValidSupabaseConfig 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+export const isSupabaseAvailable = !!supabase;
 
 // Database types
 export interface DatabaseUser {
