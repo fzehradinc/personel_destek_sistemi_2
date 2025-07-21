@@ -243,8 +243,10 @@ export const useSupabaseAuth = () => {
     logout,
     addUser,
     updateUser,
+    deleteUser,
     getAllUsers,
     addUsersFromExcel,
+    changePasswordByUsername,
     isAdmin: currentUser?.role === 'admin',
     isPersonel: currentUser?.role === 'personel'
   };

@@ -329,6 +329,7 @@ export const useAuth = () => {
     deleteUser,
     getAllUsers,
     changePasswordByUsername,
+    changePasswordByUsername,
     isAdmin: currentUser?.role === 'admin',
     isPersonel: currentUser?.role === 'personel'
   };
