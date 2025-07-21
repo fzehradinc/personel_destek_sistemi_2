@@ -25,6 +25,7 @@ interface AuthContextType {
   updateUser: (userId: string, updates: Partial<User>) => Promise<{ success: boolean; message: string }>;
   getAllUsers: () => Promise<User[]>;
   changePasswordByUsername: (username: string, currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  deleteUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   isAdmin: boolean;
   isPersonel: boolean;
 }

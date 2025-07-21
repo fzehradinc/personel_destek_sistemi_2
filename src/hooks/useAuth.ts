@@ -262,6 +262,50 @@ export const useAuth = () => {
     return await loadUsers();
   }, [currentUser?.role, loadUsers]);
 
+  // Şifre değiştirme fonksiyonu
+  const changePasswordByUsername = useCallback(async (username: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    console.log('🔄 [AUTH] Şifre değiştirme işlemi başlatılıyor:', username);
+    
+    try {
+      const users = await loadUsers();
+      const user = users.find(u => u.username === username && u.isActive);
+
+      if (!user) {
+        console.log('❌ [AUTH] Kullanıcı bulunamadı:', username);
+        return { success: false, message: 'Kullanıcı bulunamadı' };
+      }
+
+      if (user.password !== currentPassword) {
+        console.log('❌ [AUTH] Mevcut şifre hatalı');
+        return { success: false, message: 'Mevcut şifre hatalı' };
+      }
+
+      // Şifreyi güncelle
+      const updatedUsers = users.map(u => 
+        u.id === user.id ? { ...u, password: newPassword } : u
+      );
+      await storage.writeJsonFile('users.json', updatedUsers);
+
+      // Eğer giriş yapmış kullanıcının şifresi değiştiriliyorsa session'ı güncelle
+      if (currentUser && currentUser.username === username) {
+        const updatedUser = { ...currentUser, password: newPassword };
+        const session: UserSession = {
+          user: updatedUser,
+          loginTime: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        };
+        await storage.writeJsonFile('user_session.json', session);
+        setCurrentUser(updatedUser);
+      }
+      
+      console.log('✅ [AUTH] Şifre başarıyla değiştirildi:', username);
+      return { success: true, message: 'Şifre başarıyla değiştirildi' };
+    } catch (error) {
+      console.error('❌ [AUTH] Şifre değiştirme hatası:', error);
+      return { success: false, message: 'Şifre değiştirilirken hata oluştu' };
+    }
+  }, [loadUsers, currentUser]);
+
   // Kullanıcı silme fonksiyonu
   const deleteUser = useCallback(async (userId: string): Promise<{ success: boolean; message: string }> => {
     if (currentUser?.role !== 'admin') {
