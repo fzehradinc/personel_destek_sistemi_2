@@ -268,26 +268,42 @@ export const useAuth = () => {
     
     try {
       const users = await loadUsers();
-      const user = users.find(u => u.username === username && u.isActive);
+      
+      // 1. Kullanıcı adı doğrulaması - kullanıcı mevcut mu ve aktif mi?
+      const user = users.find(u => u.username === username);
 
       if (!user) {
-        console.log('❌ [AUTH] Kullanıcı bulunamadı:', username);
-        return { success: false, message: 'Kullanıcı bulunamadı' };
+        console.log('❌ [AUTH] Kullanıcı adı bulunamadı:', username);
+        return { success: false, message: 'Girilen kullanıcı adı sistemde bulunamadı' };
       }
 
+      // 2. Aktif kullanıcı kontrolü
+      if (!user.isActive) {
+        console.log('❌ [AUTH] Kullanıcı hesabı pasif:', username);
+        return { success: false, message: 'Bu kullanıcı hesabı pasif durumda. Lütfen yöneticinizle iletişime geçin' };
+      }
+
+      // 3. Mevcut şifre doğrulaması - bu kullanıcıya ait mi?
       if (user.password !== currentPassword) {
-        console.log('❌ [AUTH] Mevcut şifre hatalı');
-        return { success: false, message: 'Mevcut şifre hatalı' };
+        console.log('❌ [AUTH] Mevcut şifre bu kullanıcıya ait değil:', username);
+        return { success: false, message: 'Girilen mevcut şifre bu kullanıcı adı ile eşleşmiyor' };
       }
 
-      // Şifreyi güncelle
+      // 4. Yeni şifre uzunluk kontrolü
+      if (newPassword.length < 8) {
+        console.log('❌ [AUTH] Yeni şifre çok kısa:', newPassword.length);
+        return { success: false, message: 'Yeni şifre en az 8 karakter olmalıdır' };
+      }
+
+      // 5. Şifreyi güncelle - kullanıcı adı ile ilişkilendirilmiş yeni şifre sakla
       const updatedUsers = users.map(u => 
         u.id === user.id ? { ...u, password: newPassword } : u
       );
       await storage.writeJsonFile('users.json', updatedUsers);
 
-      // Eğer giriş yapmış kullanıcının şifresi değiştiriliyorsa session'ı güncelle
+      // 6. Session güncelleme - eğer giriş yapmış kullanıcının şifresi değiştiriliyorsa
       if (currentUser && currentUser.username === username) {
+        console.log('🔄 [AUTH] Giriş yapmış kullanıcının şifresi değiştirildi, session güncelleniyor');
         const updatedUser = { ...currentUser, password: newPassword };
         const session: UserSession = {
           user: updatedUser,
@@ -296,13 +312,14 @@ export const useAuth = () => {
         };
         await storage.writeJsonFile('user_session.json', session);
         setCurrentUser(updatedUser);
+        console.log('✅ [AUTH] Session başarıyla güncellendi');
       }
       
-      console.log('✅ [AUTH] Şifre başarıyla değiştirildi:', username);
-      return { success: true, message: 'Şifre başarıyla değiştirildi' };
+      console.log('✅ [AUTH] Şifre başarıyla değiştirildi ve kaydedildi:', username);
+      return { success: true, message: `${username} kullanıcısının şifresi başarıyla değiştirildi ve sistemde kaydedildi` };
     } catch (error) {
       console.error('❌ [AUTH] Şifre değiştirme hatası:', error);
-      return { success: false, message: 'Şifre değiştirilirken hata oluştu' };
+      return { success: false, message: 'Şifre değiştirilirken sistem hatası oluştu. Lütfen tekrar deneyin' };
     }
   }, [loadUsers, currentUser]);
 

@@ -234,7 +234,7 @@ const LoginPage = () => {
         <PasswordChangeModal
           isOpen={showPasswordChangeModal}
           onClose={() => setShowPasswordChangeModal(false)}
-          isLoginPage={true}
+          showUsernameField={true}
         />
       </div>
     </div>
