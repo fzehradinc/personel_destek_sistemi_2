@@ -49,21 +49,29 @@ interface AuthProviderProps {
 
 // In-memory storage fallback for web environments
 class WebStorage {
-  private storage = new Map<string, any>();
   public isReady = true; // Always ready for in-memory storage
 
   async readJsonFile(filename: string): Promise<any> {
     console.log(`📖 [STORAGE] Reading: ${filename}`);
-    const data = this.storage.get(filename);
-    return data || null;
+    try {
+      const data = localStorage.getItem(filename);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error reading ${filename}:`, error);
+      return null;
+    }
   }
 
   async writeJsonFile(filename: string, data: any): Promise<void> {
     console.log(`💾 [STORAGE] Writing: ${filename}`, data ? 'with data' : 'null');
-    if (data === null) {
-      this.storage.delete(filename);
-    } else {
-      this.storage.set(filename, data);
+    try {
+      if (data === null) {
+        localStorage.removeItem(filename);
+      } else {
+        localStorage.setItem(filename, JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error(`❌ [STORAGE] Error writing ${filename}:`, error);
     }
   }
 }
