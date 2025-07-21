@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, AlertCircle, Building2 } from 'lucide-react';
+import { User, Lock, AlertCircle, Building2, Key } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import PasswordChangeModal from './PasswordChangeModal';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
   const { login, isLoading, currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -204,6 +206,22 @@ const LoginPage = () => {
                 </button>
               </div>
             </div>
+            
+            {/* Şifre Değiştir Bağlantısı */}
+            <div className="mt-6 pt-4 border-t border-gray-200 text-center">
+              <button
+                type="button"
+                onClick={() => setShowPasswordChangeModal(true)}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors flex items-center justify-center gap-2 mx-auto"
+                disabled={isLoading}
+              >
+                <Key className="w-4 h-4" />
+                Şifremi Değiştir
+              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                Mevcut kullanıcı adı ve şifrenizle yeni şifre belirleyin
+              </p>
+            </div>
           </div>
         </div>
 
@@ -211,6 +229,13 @@ const LoginPage = () => {
         <div className="text-center mt-8 text-sm text-gray-500">
           © 2024 Entegrasyon Ekibi - Personel Destek Sistemi
         </div>
+        
+        {/* Şifre Değiştirme Modal */}
+        <PasswordChangeModal
+          isOpen={showPasswordChangeModal}
+          onClose={() => setShowPasswordChangeModal(false)}
+          isLoginPage={true}
+        />
       </div>
     </div>
   );

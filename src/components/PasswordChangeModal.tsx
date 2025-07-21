@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Lock, Eye, EyeOff, CheckCircle, AlertCircle, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface PasswordChangeModalProps {
@@ -7,16 +7,19 @@ interface PasswordChangeModalProps {
   onClose: () => void;
   targetUserId?: string; // Admin başka kullanıcının şifresini değiştirirken
   targetUserName?: string;
+  isLoginPage?: boolean; // Giriş sayfasından açılıp açılmadığını belirtir
 }
 
 const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
   isOpen,
   onClose,
   targetUserId,
-  targetUserName
+  targetUserName,
+  isLoginPage = false
 }) => {
-  const { currentUser, updateUser } = useAuth();
+  const { currentUser, updateUser, getAllUsers } = useAuth();
   const [formData, setFormData] = useState({
+    username: '', // Giriş sayfasından kullanılacak
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -28,15 +31,28 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const isAdminChangingOtherUser = targetUserId && targetUserId !== currentUser?.id;
+  const isLoginPageMode = isLoginPage && !currentUser;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     // Form validasyonu
-    if (!isAdminChangingOtherUser && !formData.currentPassword.trim()) {
+    if (!isAdminChangingOtherUser && !isLoginPageMode && !formData.currentPassword.trim()) {
+      setError('Mevcut şifrenizi girmeniz gerekiyor');
+      return;
+    }
+
+    if (isLoginPageMode && !formData.username.trim()) {
+      setError('Kullanıcı adınızı girmeniz gerekiyor');
+      return;
+    }
+
+    if (isLoginPageMode && !formData.currentPassword.trim()) {
       setError('Mevcut şifrenizi girmeniz gerekiyor');
       return;
     }
@@ -46,8 +62,8 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
       return;
     }
 
-    if (formData.newPassword.length < 3) {
-      setError('Yeni şifre en az 3 karakter olmalıdır');
+    if (formData.newPassword.length < 8) {
+      setError('Yeni şifre en az 8 karakter olmalıdır');
       return;
     }
 
@@ -63,6 +79,42 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
     setLoading(true);
 
+    try {
+      // Giriş sayfasından şifre değiştirme
+      if (isLoginPageMode) {
+        console.log('🔐 [PASSWORD-CHANGE] Giriş sayfasından şifre değiştirme:', formData.username);
+
+        // Kullanıcıyı bul ve mevcut şifreyi doğrula
+        const users = await getAllUsers();
+        const user = users.find(u => u.username === formData.username && u.isActive);
+
+        if (!user) {
+          setError('Kullanıcı bulunamadı veya hesap aktif değil');
+          return;
+        }
+
+        if (user.password !== formData.currentPassword) {
+          setError('Mevcut şifreniz yanlış');
+          return;
+        }
+
+        const result = await updateUser(user.id, {
+          password: formData.newPassword
+        });
+
+        if (result.success) {
+          setSuccess('✅ Şifreniz başarıyla değiştirildi! Artık yeni şifrenizle giriş yapabilirsiniz.');
+          setTimeout(() => {
+            onClose();
+            resetForm();
+          }, 2000);
+        } else {
+          setError(result.message);
+        }
+        return;
+      }
+
+      // Diğer durumlar (mevcut kod)
     try {
       // Admin başka kullanıcının şifresini değiştiriyorsa
       if (isAdminChangingOtherUser) {
@@ -115,11 +167,13 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
   const resetForm = () => {
     setFormData({
+      username: '',
       currentPassword: '',
       newPassword: '',
       confirmPassword: ''
     });
     setError('');
+    setSuccess('');
     setShowPasswords({
       current: false,
       new: false,
@@ -148,12 +202,19 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {isAdminChangingOtherUser ? 'Kullanıcı Şifresi Değiştir' : 'Şifremi Değiştir'}
+                  {isAdminChangingOtherUser 
+                    ? 'Kullanıcı Şifresi Değiştir' 
+                    : isLoginPageMode 
+                      ? 'Şifre Değiştir' 
+                      : 'Şifremi Değiştir'
+                  }
                 </h3>
                 <p className="text-sm text-gray-600">
-                  {isAdminChangingOtherUser 
+                  {isAdminChangingOtherUser
                     ? `${targetUserName} kullanıcısının şifresini değiştirin`
-                    : 'Güvenliğiniz için güçlü bir şifre seçin'
+                    : isLoginPageMode
+                      ? 'Kullanıcı adınız ve mevcut şifrenizle yeni şifre belirleyin'
+                      : 'Güvenliğiniz için güçlü bir şifre seçin'
                   }
                 </p>
               </div>
@@ -172,8 +233,28 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Kullanıcı Adı - Sadece giriş sayfasından açılırsa */}
+          {isLoginPageMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kullanıcı Adı <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Kullanıcı adınızı girin"
+                  required
+                />
+                <User className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              </div>
+            </div>
+          )}
+
           {/* Mevcut Şifre - Sadece kullanıcı kendi şifresini değiştirirken */}
-          {!isAdminChangingOtherUser && (
+          {(!isAdminChangingOtherUser || isLoginPageMode) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Mevcut Şifre <span className="text-red-500">*</span>
@@ -211,7 +292,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
                 className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Yeni şifrenizi girin"
                 required
-                minLength={3}
+                minLength={8}
               />
               <button
                 type="button"
@@ -236,7 +317,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
                 className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Yeni şifrenizi tekrar girin"
                 required
-                minLength={3}
+                minLength={8}
               />
               <button
                 type="button"
@@ -266,6 +347,14 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
                   <span>Şifreler eşleşmiyor</span>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Başarı Mesajı */}
+          {success && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <span className="text-green-700 text-sm">{success}</span>
             </div>
           )}
 
@@ -306,7 +395,8 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
             <button
               type="submit"
               disabled={loading || !formData.newPassword || !formData.confirmPassword || 
-                       (!isAdminChangingOtherUser && !formData.currentPassword) ||
+                       (!isAdminChangingOtherUser && !isLoginPageMode && !formData.currentPassword) ||
+                       (isLoginPageMode && (!formData.username || !formData.currentPassword)) ||
                        formData.newPassword !== formData.confirmPassword}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
