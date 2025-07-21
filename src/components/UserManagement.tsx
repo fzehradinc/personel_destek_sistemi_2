@@ -3,6 +3,7 @@ import { Users, Plus, Edit, Trash2, Eye, EyeOff, UserPlus, Shield, Calendar, Upl
 import * as XLSX from 'xlsx';
 import { User } from '../types/user';
 import { useAuth } from '../contexts/AuthContext';
+import { useWebStorage } from '../hooks/useWebStorage';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -19,6 +20,7 @@ const UserManagement = () => {
   } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { getAllUsers, addUser, updateUser } = useAuth();
+  const storage = useWebStorage();
 
   // Kullanıcıları yükle
   const loadUsers = useCallback(async () => {
@@ -377,9 +379,6 @@ const UserManagement = () => {
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{user.name}</div>
                             <div className="text-sm text-gray-500">@{user.username}</div>
-                            {user.email && (
-                              <div className="text-xs text-gray-400">{user.email}</div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -401,9 +400,6 @@ const UserManagement = () => {
                             </>
                           )}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.department || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.lastLogin ? (
@@ -478,11 +474,49 @@ const UserManagement = () => {
             setEditingUser(null);
           }}
           user={editingUser}
+          onDelete={async (userId) => {
+            setLoading(true);
+            try {
+              // Admin'in kendini silmesini engelle
+              if (editingUser?.role === 'admin' && editingUser?.username === 'admin') {
+                alert('❌ Sistem yöneticisi hesabı silinemez.');
+                return;
+              }
+              
+              console.log('🗑️ [USER-MANAGEMENT] Kullanıcı siliniyor:', userId);
+              
+              // Kullanıcıyı sil (localStorage'dan)
+              const users = await getAllUsers();
+              const updatedUsers = users.filter(u => u.id !== userId);
+              
+              // Güncellenmiş kullanıcı listesini kaydet
+              await storage.writeJsonFile('users.json', updatedUsers);
+              
+              // Modal'ı kapat
+              setEditingUser(null);
+              
+              // Listeyi yenile
+              refreshUserList();
+              
+              alert('✅ Kullanıcı başarıyla silindi.');
+              console.log('✅ [USER-MANAGEMENT] Kullanıcı silme işlemi tamamlandı');
+            } catch (error) {
+              console.error('❌ [USER-MANAGEMENT] Kullanıcı silme hatası:', error);
+              alert('❌ Kullanıcı silinirken hata oluştu.');
+            } finally {
+              setLoading(false);
+            }
+          }}
           onSave={async (userData) => {
             setLoading(true);
             try {
               let result;
             if (editingUser) {
+                // Şifre boşsa mevcut şifreyi koru
+                const updateData = { ...userData };
+                if (!updateData.password.trim()) {
+                  delete updateData.password;
+                }
                 result = await updateUser(editingUser.id, userData);
             } else {
                 result = await addUser(userData);
@@ -533,13 +567,15 @@ const UserModal = ({
   onClose, 
   user, 
   onSave,
-  loading
+  loading,
+  onDelete
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   user: User | null; 
   onSave: (userData: Omit<User, 'id' | 'createdAt'>) => void;
   loading?: boolean;
+  onDelete?: (userId: string) => void;
 }) => {
   const [formData, setFormData] = useState({
     username: '',
@@ -569,6 +605,24 @@ const UserModal = ({
     }
   }, [user]);
 
+  const handleDelete = () => {
+    if (!user || !onDelete) return;
+    
+    const confirmMessage = `⚠️ KULLANICI SİLME ONAY
+
+${user.name} (@${user.username}) kullanıcısını kalıcı olarak silmek istediğinizden emin misiniz?
+
+🚨 Bu işlem:
+• Kullanıcıyı sistemden tamamen kaldıracaktır
+• Geri alınamaz bir işlemdir
+• Kullanıcının tüm oturum bilgileri silinecektir
+
+Devam etmek istiyor musunuz?`;
+
+    if (confirm(confirmMessage)) {
+      onDelete(user.id);
+    }
+  };
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -599,9 +653,21 @@ const UserModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {user ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı Ekle'}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {user ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı Ekle'}
+            </h3>
+            {user && onDelete && (
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="text-red-600 hover:text-red-800 p-2 rounded-lg transition-colors disabled:opacity-50"
+                title="Kullanıcıyı Sil"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -618,20 +684,19 @@ const UserModal = ({
             />
           </div>
 
-          {!user && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Şifre
-              </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {user ? 'Yeni Şifre (boş bırakılırsa değişmez)' : 'Şifre'}
+            </label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required={!user}
+              placeholder={user ? 'Yeni şifre girin (opsiyonel)' : 'Şifre girin'}
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -233,7 +233,13 @@ export const useAuth = () => {
         return { success: false, message: 'Kullanıcı bulunamadı' };
       }
 
-      users[userIndex] = { ...users[userIndex], ...updates };
+      // Şifre boşsa mevcut şifreyi koru
+      const updateData = { ...updates };
+      if (updateData.password === '') {
+        delete updateData.password;
+      }
+      
+      users[userIndex] = { ...users[userIndex], ...updateData };
       await storage.writeJsonFile('users.json', users);
       
       console.log('✅ [AUTH] Kullanıcı başarıyla güncellendi:', {
