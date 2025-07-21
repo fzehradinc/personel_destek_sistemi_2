@@ -59,8 +59,8 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
     shouldRedirect: !currentUser && isInitialized && !isLoading
   });
 
-  // Show loading only if truly not initialized AND loading
-  if (!isInitialized && isLoading) {
+  // Show loading if not initialized OR if loading
+  if (!isInitialized || isLoading) {
     console.log('⏳ [PROTECTED-ROUTE] Still initializing...');
     return <InitialLoadingSpinner />;
   }
@@ -101,8 +101,8 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     shouldRedirect: !!currentUser && isInitialized
   });
 
-  // Show loading only if truly not initialized AND loading
-  if (!isInitialized && isLoading) {
+  // Show loading if not initialized OR if loading
+  if (!isInitialized || isLoading) {
     console.log('⏳ [PUBLIC-ROUTE] Still initializing...');
     return <InitialLoadingSpinner />;
   }

@@ -198,10 +198,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('❌ [AUTH] Login error:', error);
       return { success: false, message: 'Giriş sırasında hata oluştu' };
-    }
+    } finally {
       setIsLoading(false);
-  }
-  )
+    }
 
   // Logout function
   const logout = useCallback(async () => {

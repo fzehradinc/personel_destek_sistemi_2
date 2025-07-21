@@ -52,8 +52,7 @@ const LoginPage = () => {
       
       if (result.success) {
         console.log('✅ [LOGIN] Login successful, waiting for context update...');
-        // AuthContext currentUser güncellemesini bekle
-        // useEffect yukarıda yönlendirmeyi yapacak
+        // Login başarılı - AuthContext otomatik yönlendirecek
       } else {
         console.log('❌ [LOGIN] Login failed:', result.message);
         setError(result.message);
