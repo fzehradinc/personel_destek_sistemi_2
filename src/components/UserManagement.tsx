@@ -171,8 +171,6 @@ const UserManagement = () => {
         'Kullanıcı Adı': 'ornek_kullanici',
         'Şifre': 'sifre123',
         'Ad Soyad': 'Örnek Kullanıcı',
-        'E-posta': 'ornek@company.com',
-        'Departman': 'IT',
         'Rol': 'personel',
         'Aktiflik Durumu': 'true'
       }
