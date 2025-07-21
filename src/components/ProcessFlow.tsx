@@ -41,7 +41,12 @@ interface NodePosition {
   y: number;
 }
 
-const ProcessFlowComponent = () => {
+interface ProcessFlowProps {
+  onAssignContent?: (contentId: string, contentType: 'process', contentTitle: string) => void;
+  isPersonelView?: boolean;
+}
+
+const ProcessFlowComponent: React.FC<ProcessFlowProps> = ({ onAssignContent, isPersonelView = false }) => {
   const [processFlows, setProcessFlows] = useState<ProcessFlow[]>([]);
   const [selectedFlow, setSelectedFlow] = useState<ProcessFlow | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1136,7 +1141,7 @@ const ProcessFlowComponent = () => {
           </div>
 
           {/* Kalıcı Depolama Bilgisi */}
-          {!isPublished && (
+          {!isPersonelView && !isPublished && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="font-medium text-green-900 mb-2">
                 {storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
@@ -1152,7 +1157,7 @@ const ProcessFlowComponent = () => {
         </div>
 
         {/* Yükleme Alanı */}
-        {!isPublished && (
+        {!isPersonelView && !isPublished && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Upload className="w-5 h-5" />
@@ -1222,7 +1227,7 @@ const ProcessFlowComponent = () => {
         )}
 
         {/* Yayınlama Kontrolü */}
-        {!isPublished && processFlows.length > 0 && (
+        {!isPersonelView && !isPublished && processFlows.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Rocket className="w-5 h-5" />
@@ -1279,7 +1284,7 @@ const ProcessFlowComponent = () => {
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">{filteredFlows.length}</span> süreç akışı bulundu
                 </div>
-                {!isPublished && (
+                {!isPersonelView && !isPublished && (
                   <div className="flex items-center gap-4">
                     <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                       ✏️ Düzenleme modu aktif
@@ -1337,7 +1342,7 @@ const ProcessFlowComponent = () => {
                     <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">
                       {flow.title || 'Başlıksız Akış'}
                     </h3>
-                    {!isPublished && (
+                    {!isPersonelView && !isPublished && (
                       <button
                         onClick={() => deleteFlow(flow.id)}
                         className="text-red-600 hover:text-red-800 p-1 ml-2"

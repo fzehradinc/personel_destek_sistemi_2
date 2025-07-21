@@ -17,7 +17,12 @@ interface TrainingMaterial {
   previewData?: string; // Base64 preview data - PERSISTENT
 }
 
-const TrainingMaterials = () => {
+interface TrainingMaterialsProps {
+  onAssignContent?: (contentId: string, contentType: 'training', contentTitle: string) => void;
+  isPersonelView?: boolean;
+}
+
+const TrainingMaterials: React.FC<TrainingMaterialsProps> = ({ onAssignContent, isPersonelView = false }) => {
   const [materials, setMaterials] = useState<TrainingMaterial[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -692,7 +697,7 @@ Devam etmek istiyor musunuz?`;
           </div>
 
           {/* Kalıcı Depolama Bilgisi - Sadece yayınlanmamışsa göster */}
-          {!isPublished && (
+          {!isPersonelView && !isPublished && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="font-medium text-green-900 mb-2">
                 {storage.isElectron ? '🖥️ Electron Modu - Kalıcı Depolama Aktif' : '🌐 Web Modu - Geçici Depolama'}
@@ -718,7 +723,7 @@ Devam etmek istiyor musunuz?`;
         </div>
 
         {/* Yükleme Alanı - Sadece yayınlanmamışsa göster */}
-        {!isPublished && (
+        {!isPersonelView && !isPublished && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Upload className="w-5 h-5" />
@@ -854,7 +859,7 @@ Devam etmek istiyor musunuz?`;
         )}
 
         {/* Yayınlama Kontrolü */}
-        {!isPublished && materials.length > 0 && (
+        {!isPersonelView && !isPublished && materials.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Rocket className="w-5 h-5" />
@@ -933,7 +938,7 @@ Devam etmek istiyor musunuz?`;
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">{filteredMaterials.length}</span> eğitim materyali bulundu
                 </div>
-                {!isPublished && (
+                {!isPersonelView && !isPublished && (
                   <div className="flex items-center gap-4">
                     <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                       ✏️ Düzenleme modu aktif
@@ -962,14 +967,25 @@ Devam etmek istiyor musunuz?`;
                     <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">
                       {material.title}
                     </h3>
-                    {!isPublished && (
-                      <button
-                        onClick={() => deleteMaterial(material.id)}
-                        className="text-red-600 hover:text-red-800 p-1 ml-2"
-                        title="Sil"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    {!isPersonelView && !isPublished && (
+                      <div className="flex gap-1">
+                        {onAssignContent && (
+                          <button
+                            onClick={() => onAssignContent(material.id, 'training', material.title)}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                            title="Personele Ata"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteMaterial(material.id)}
+                          className="text-red-600 hover:text-red-800 p-1"
+                          title="Sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -996,10 +1012,19 @@ Devam etmek istiyor musunuz?`;
                     {material.fileSize && <span>{material.fileSize}</span>}
                   </div>
 
-                  {material.fileName && (
-                    <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
-                      <span>📁</span>
-                      <span className="truncate">{material.fileName}</span>
+                  {/* Dosya Bilgisi - Sadece yayınlanmamış modüllerde göster */}
+                  {!isPersonelView && material.fileName && !isPublished && (
+                    <div className="text-xs text-gray-500 mb-4 space-y-1">
+                      <div className="flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        <span className="truncate">{material.fileName}</span>
+                      </div>
+                      {material.fileUrl && (
+                        <div className="flex items-center gap-1">
+                          <span>🔗</span>
+                          <span className="truncate text-blue-600">{material.fileUrl}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
