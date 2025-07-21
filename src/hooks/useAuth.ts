@@ -328,6 +328,7 @@ export const useAuth = () => {
     updateUser,
     deleteUser,
     getAllUsers,
+    changePasswordByUsername,
     isAdmin: currentUser?.role === 'admin',
     isPersonel: currentUser?.role === 'personel'
   };

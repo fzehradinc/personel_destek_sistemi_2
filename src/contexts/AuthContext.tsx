@@ -24,6 +24,7 @@ interface AuthContextType {
   addUser: (userData: Omit<User, 'id' | 'createdAt'>) => Promise<{ success: boolean; message: string }>;
   updateUser: (userId: string, updates: Partial<User>) => Promise<{ success: boolean; message: string }>;
   getAllUsers: () => Promise<User[]>;
+  changePasswordByUsername: (username: string, currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   isAdmin: boolean;
   isPersonel: boolean;
 }
@@ -55,6 +56,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateUser: authData.updateUser,
     deleteUser: authData.deleteUser,
     getAllUsers: authData.getAllUsers,
+    changePasswordByUsername: authData.changePasswordByUsername,
     isAdmin: authData.isAdmin,
     isPersonel: authData.isPersonel
   };
