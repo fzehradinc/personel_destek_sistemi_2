@@ -23,7 +23,7 @@ export const useSupabaseAuth = () => {
   
   // If Supabase is not available, return local auth
   if (!isSupabaseAvailable) {
-    console.log('⚠️ [AUTH] Supabase not available, using local authentication');
+    console.log('⚠️ [SUPABASE-AUTH] Supabase not available, using local authentication');
     return {
       ...localAuth,
       isInitialized: !localAuth.isLoading

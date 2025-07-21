@@ -8,7 +8,10 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const hasValidSupabaseConfig = supabaseUrl && 
   supabaseAnonKey && 
   supabaseUrl !== 'your-project-url.supabase.co' &&
-  supabaseAnonKey !== 'your-anon-key';
+  supabaseAnonKey !== 'your-anon-key' &&
+  supabaseUrl !== 'https://your-project-url.supabase.co' &&
+  !supabaseUrl.includes('your-project-url') &&
+  !supabaseAnonKey.includes('your-anon-key');
 
 export const supabase = hasValidSupabaseConfig 
   ? createClient(supabaseUrl, supabaseAnonKey)
