@@ -171,6 +171,8 @@ const UserManagement = () => {
         'Kullanıcı Adı': 'ornek_kullanici',
         'Şifre': 'sifre123',
         'Ad Soyad': 'Örnek Kullanıcı',
+        'E-posta': 'ornek@company.com',
+        'Departman': 'IT',
         'Rol': 'personel',
         'Aktiflik Durumu': 'true'
       }
@@ -348,9 +350,6 @@ const UserManagement = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Rol
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Departman
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Son Giriş

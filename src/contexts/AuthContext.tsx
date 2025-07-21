@@ -93,8 +93,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password: 'admin123',
       role: 'admin',
       name: 'Sistem Yöneticisi',
-      email: 'admin@company.com',
-      department: 'IT',
+      email: '',
+      department: '',
       createdAt: new Date().toISOString(),
       isActive: true
     },
@@ -104,8 +104,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password: 'personel123',
       role: 'personel',
       name: 'Ahmet Yılmaz',
-      email: 'ahmet.yilmaz@company.com',
-      department: 'Entegrasyon',
+      email: '',
+      department: '',
       createdAt: new Date().toISOString(),
       isActive: true
     },
@@ -115,8 +115,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password: 'personel123',
       role: 'personel',
       name: 'Ayşe Demir',
-      email: 'ayse.demir@company.com',
-      department: 'Kalite Kontrol',
+      email: '',
+      department: '',
       createdAt: new Date().toISOString(),
       isActive: true
     }
