@@ -480,7 +480,6 @@ const AdminDashboard = React.memo(() => {
                       </p>
                     </div>
                   </>
-                  </>
                 )}
               </div>
               
